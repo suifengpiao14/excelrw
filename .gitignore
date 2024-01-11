@@ -1,0 +1,3 @@
+go.work*
+_debug*
+example/*.xlsx
