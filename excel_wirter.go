@@ -1,6 +1,7 @@
 package excelrw
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -221,7 +222,7 @@ func (ed ExchangeData) NextRowNumber() (nextRowNumber int) {
 	return ed.RowNumber + len(ed.Data)
 }
 
-type _ExcelChanWriter struct {
+type ExcelChanWriter struct {
 	fd            *excelize.File
 	excelWriter   *_ExcelWriter
 	dataChan      chan *ExchangeData
@@ -234,6 +235,7 @@ type _ExcelChanWriter struct {
 	err           error
 	nextRowNumber int
 	streamWriter  *excelize.StreamWriter
+	context       context.Context
 }
 
 type ExcelChanWriterOption struct {
@@ -241,12 +243,15 @@ type ExcelChanWriterOption struct {
 	RemoveOldFile bool `json:"removeOldFile"`
 }
 
-func NewExcelChanWriter(filename string, sheet string, fieldMetas FieldMetas, option *ExcelChanWriterOption) (ecw *_ExcelChanWriter, beginRowNumber int, err error) {
+func NewExcelChanWriter(ctx context.Context, filename string, sheet string, fieldMetas FieldMetas, option *ExcelChanWriterOption) (ecw *ExcelChanWriter, beginRowNumber int, err error) {
 	fieldMetas.Sort()
 	if option == nil {
-		option = &ExcelChanWriterOption{}
+		option = &ExcelChanWriterOption{
+			WithTitle:     true,
+			RemoveOldFile: true,
+		}
 	}
-	ecw = &_ExcelChanWriter{
+	ecw = &ExcelChanWriter{
 		excelWriter:   NewExcelWriter(),
 		dataChan:      make(chan *ExchangeData, 10),
 		finishSignal:  make(chan struct{}, 1),
@@ -255,6 +260,7 @@ func NewExcelChanWriter(filename string, sheet string, fieldMetas FieldMetas, op
 		fieldMetas:    fieldMetas,
 		withTitle:     option.WithTitle,
 		removeOldFile: option.RemoveOldFile,
+		context:       ctx,
 	}
 	err = ecw.init()
 	if err != nil {
@@ -264,12 +270,12 @@ func NewExcelChanWriter(filename string, sheet string, fieldMetas FieldMetas, op
 	return ecw, ecw.nextRowNumber, nil
 }
 
-func (ecw *_ExcelChanWriter) SendData(exchangeData *ExchangeData) (nextRowNumber int) {
+func (ecw *ExcelChanWriter) SendData(exchangeData *ExchangeData) (nextRowNumber int) {
 	ecw.dataChan <- exchangeData
 	return exchangeData.NextRowNumber()
 }
 
-func (ecw *_ExcelChanWriter) Finish() (err error) {
+func (ecw *ExcelChanWriter) Finish() (err error) {
 	close(ecw.dataChan)
 	<-ecw.finishSignal
 	if ecw.err != nil {
@@ -286,7 +292,7 @@ func (ecw *_ExcelChanWriter) Finish() (err error) {
 	return nil
 }
 
-func (ecw *_ExcelChanWriter) init() (err error) {
+func (ecw *ExcelChanWriter) init() (err error) {
 	excelWriter := ecw.excelWriter
 	fd, err := excelWriter.GetFile(ecw.filename, ecw.sheet, ecw.removeOldFile)
 	if err != nil {
@@ -315,7 +321,7 @@ func (ecw *_ExcelChanWriter) init() (err error) {
 	return nil
 }
 
-func (ecw *_ExcelChanWriter) subChan() {
+func (ecw *ExcelChanWriter) subChan() {
 	excelWriter := ecw.excelWriter
 	streamWriter := ecw.streamWriter
 	//开启协程接收数据
@@ -327,11 +333,17 @@ func (ecw *_ExcelChanWriter) subChan() {
 			}
 			ecw.finishSignal <- struct{}{} // 通知已经完成数据写入
 		}()
-		for proxyData := range ecw.dataChan { //  阻塞读取数据写入文件
-			_, err := excelWriter.Write2streamWriter(streamWriter, ecw.fieldMetas, *proxyData)
-			if err != nil {
-				ecw.err = err
+		for {
+			select {
+			case <-ecw.context.Done():
+				ecw.err = ecw.context.Err()
 				return
+			case proxyData := <-ecw.dataChan: //读取数据写入文件
+				_, err := excelWriter.Write2streamWriter(streamWriter, ecw.fieldMetas, *proxyData)
+				if err != nil {
+					ecw.err = err
+					return
+				}
 			}
 		}
 	}()

@@ -1,6 +1,7 @@
 package excelrw_test
 
 import (
+  "context"
   "encoding/json"
   "testing"
 
@@ -25,8 +26,8 @@ func TestWriteWithChan(t *testing.T) {
     {Name: "Fclass_key", Title: "分类key"},
     {Name: "Fclass_name", Title: "分类名称"},
   }
-
-  ecw, beginRowNumber, err := excelrw.NewExcelChanWriter(filename, sheet, fieldMetas, &excelrw.ExcelChanWriterOption{WithTitle: true, RemoveOldFile: true})
+  ctx := context.Background()
+  ecw, beginRowNumber, err := excelrw.NewExcelChanWriter(ctx, filename, sheet, fieldMetas, &excelrw.ExcelChanWriterOption{WithTitle: true, RemoveOldFile: true})
   require.NoError(t, err)
   exchangeData := excelrw.ExchangeData{
     RowNumber: beginRowNumber,
