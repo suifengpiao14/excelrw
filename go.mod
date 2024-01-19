@@ -5,7 +5,7 @@ go 1.21.0
 require (
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.4
-	github.com/suifengpiao14/httpraw v0.0.4
+	github.com/suifengpiao14/httpraw v0.0.5
 	github.com/xuri/excelize/v2 v2.8.0
 )
 
