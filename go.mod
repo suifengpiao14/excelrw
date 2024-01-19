@@ -5,7 +5,7 @@ go 1.21.0
 require (
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.4
-	github.com/suifengpiao14/httpraw v0.0.3
+	github.com/suifengpiao14/httpraw v0.0.4
 	github.com/xuri/excelize/v2 v2.8.0
 )
 
@@ -36,11 +36,6 @@ require (
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/suifengpiao14/funcs v0.0.17 // indirect
 	github.com/suifengpiao14/logchan/v2 v2.0.22 // indirect
-	github.com/tidwall/gjson v1.17.0 // indirect
-	github.com/tidwall/match v1.1.1 // indirect
-	github.com/tidwall/pretty v1.2.0 // indirect
-	github.com/tidwall/sjson v1.2.5 // indirect
-	github.com/traefik/yaegi v0.15.1 // indirect
 	github.com/xuri/efp v0.0.0-20230802181842-ad255f2331ca // indirect
 	github.com/xuri/nfp v0.0.0-20230819163627-dc951e3ffe1a // indirect
 	golang.org/x/crypto v0.12.0 // indirect

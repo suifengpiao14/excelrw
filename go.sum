@@ -75,11 +75,10 @@ github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcU
 github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXlSw2iwfAo=
 github.com/suifengpiao14/funcs v0.0.17 h1:keUA2KoupDLhMrg1xxP9i1/5Kp0rDkBfvsjPZJ+jlLw=
 github.com/suifengpiao14/funcs v0.0.17/go.mod h1:g95inzlUrS2Vtyvv5SjVFOnOeX7ZBPWwyKuEMMW+g7U=
-github.com/suifengpiao14/httpraw v0.0.3 h1:XYOzCdHOrluq7EC+oLVLzLl0QStzCdKmvqF32XGvdUA=
-github.com/suifengpiao14/httpraw v0.0.3/go.mod h1:7JUxutw48BKnTXV/NJviVbbr0vRzjxFogRafgAumH1A=
+github.com/suifengpiao14/httpraw v0.0.4 h1:Ik6zOFn2kKafPG1cgc9VXtf35Fjc1rPVR1wZU46LayE=
+github.com/suifengpiao14/httpraw v0.0.4/go.mod h1:7JUxutw48BKnTXV/NJviVbbr0vRzjxFogRafgAumH1A=
 github.com/suifengpiao14/logchan/v2 v2.0.22 h1:LhpV9E0ofNRQFEvR9MOF4hSHJes8s/aXn9Z4qdLVPck=
 github.com/suifengpiao14/logchan/v2 v2.0.22/go.mod h1:6o0naTqWDkgYMR4vQetJn1zVGMLD9YZ8TrNzQ9OjAFY=
-github.com/tidwall/gjson v1.14.2/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
 github.com/tidwall/gjson v1.17.0 h1:/Jocvlh98kcTfpN2+JzGQWQcqrPQwDrVEMApx/M5ZwM=
 github.com/tidwall/gjson v1.17.0/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
 github.com/tidwall/match v1.1.1 h1:+Ho715JplO36QYgwN9PGYNhgZvoUSc9X2c80KVTi+GA=

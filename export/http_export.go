@@ -12,14 +12,14 @@ import (
 )
 
 type HttpExportIn struct {
-	Tpl             string
-	Script          string
-	CallbackTpl     string
-	CallbackScript  string
-	ExcelFilename   string
-	FieldMetas      excelrw.FieldMetas
-	RequestInterval time.Duration // 循环请求获取数据的间隔时间
-	Timeout         time.Duration // 任务处理最长时间
+	Tpl              string
+	CurlhookImpl     httpraw.CURLHookI
+	CallbackTpl      string
+	CallbackHookImpl httpraw.CURLHookI
+	ExcelFilename    string
+	FieldMetas       excelrw.FieldMetas
+	RequestInterval  time.Duration // 循环请求获取数据的间隔时间
+	Timeout          time.Duration // 任务处理最长时间
 }
 
 type HttpExport struct {
@@ -35,10 +35,13 @@ type HttpExport struct {
 
 var MaxLoopTimes = 100000 // 最大循环次数，超过这个次数退出循环，并抛出错误
 
-func NewHttpExport(exportIn HttpExportIn, option *excelrw.ExcelChanWriterOption) (ex *HttpExport, err error) {
+func NewHttpExport(ctx context.Context, exportIn HttpExportIn, option *excelrw.ExcelChanWriterOption) (ex *HttpExport, err error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	ex = &HttpExport{
 		Timeout: exportIn.Timeout,
-		context: context.Background(),
+		context: ctx,
 	}
 	if exportIn.RequestInterval > 0 {
 		timeoutErr := errors.Errorf("proxy export time out")
@@ -51,7 +54,7 @@ func NewHttpExport(exportIn HttpExportIn, option *excelrw.ExcelChanWriterOption)
 		return nil, err
 	}
 
-	proxy, err := httpraw.NewHttpProxy(exportIn.Tpl, exportIn.Script)
+	proxy, err := httpraw.NewHttpProxy(exportIn.Tpl, exportIn.CurlhookImpl)
 	if err != nil {
 		return nil, err
 	}
@@ -60,12 +63,11 @@ func NewHttpExport(exportIn HttpExportIn, option *excelrw.ExcelChanWriterOption)
 	ex.startRowNumber = beginRowNumber
 
 	if exportIn.CallbackTpl != "" { // 增加回调配置
-		ex.callbackProxy, err = httpraw.NewHttpProxy(exportIn.CallbackTpl, exportIn.CallbackScript)
+		ex.callbackProxy, err = httpraw.NewHttpProxy(exportIn.CallbackTpl, exportIn.CallbackHookImpl)
 		if err != nil {
 			return nil, err
 		}
 	}
-
 	return ex, nil
 }
 
