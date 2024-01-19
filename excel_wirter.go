@@ -2,6 +2,7 @@ package excelrw
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,9 +13,9 @@ import (
 )
 
 type FieldMeta struct {
-	ColNumber int    // 列号(数字,1开始)
-	Name      string // 列名称
-	Title     string // 列标题
+	ColNumber int    `json:"colNumber"` // 列号(数字,1开始) 增加json tag,可方便调用方验证输入是否符合格式
+	Name      string `json:"name"`      // 列名称
+	Title     string `json:"title"`     // 列标题
 }
 
 type FieldMetas []FieldMeta
@@ -44,6 +45,17 @@ func (fs FieldMetas) MinColIndex() (minColIndex int) {
 		return fs[0].ColNumber
 	}
 	return 0
+}
+
+//ValidateFieldMetas 验证字符串是否符合 FieldMetas 格式,供调用方接收入参时验证
+func ValidateFieldMetas(fieldMetasStr string) (err error) {
+	fieldMetas := make(FieldMetas, 0)
+	err = json.Unmarshal([]byte(fieldMetasStr), &fieldMetas)
+	if err != nil {
+		err = errors.WithMessage(err, `excepted format:[{"colNumber":1,"name":"A","Title":"标题"}] ,colNumber/name at least one`)
+		return err
+	}
+	return nil
 }
 
 type _ExcelWriter struct{}
