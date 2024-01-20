@@ -31,6 +31,12 @@ type HttpExport struct {
 	context         context.Context
 	RequestInterval time.Duration // 循环请求获取数据的间隔时间
 	CancelFunc      context.CancelFunc
+	err             error // 异步执行的错误记录
+}
+
+// AsyncError 获取异步错误信息
+func (ex *HttpExport) AsyncError() (err error) {
+	return ex.err
 }
 
 var MaxLoopTimes = 100000 // 最大循环次数，超过这个次数退出循环，并抛出错误
@@ -71,13 +77,27 @@ func NewHttpExport(ctx context.Context, exportIn HttpExportIn, option *excelrw.E
 	return ex, nil
 }
 
+func (ex *HttpExport) AsyncRun(requestParams map[string]any, callback func(ctx context.Context) (callbackParams map[string]any, err error)) (err error) {
+	go func() {
+		defer func() {
+			if re := recover(); re != nil {
+				ex.err = errors.Errorf("%v+", re)
+			}
+		}()
+		ex.err = ex.Run(requestParams, callback)
+	}()
+
+	return nil
+}
+
 func (ex *HttpExport) Run(requestParams map[string]any, callback func(ctx context.Context) (callbackParams map[string]any, err error)) (err error) {
-	maxCount := -1
-	beginRowNumber := ex.startRowNumber
 	reqDTO, err := ex.proxy.RequestDTO(requestParams)
 	if err != nil {
 		return err
 	}
+
+	maxCount := -1
+	beginRowNumber := ex.startRowNumber
 	var data []byte // 经过动态脚本格式化原始http body后返回的数据
 	loop := 0
 
@@ -97,6 +117,7 @@ func (ex *HttpExport) Run(requestParams map[string]any, callback func(ctx contex
 		requestParams["__loop__"] = loop                                 // 记录循环次数
 		reqDTO, data, err = ex.proxy.Request(reqDTO, requestParams, nil) //reqDTO 使用上次格式化的reqDTO,简化动态脚本递增+1翻页
 		if err != nil {
+			err = errors.WithMessage(err, "ex.proxy.Request")
 			return err
 		}
 		if data == nil {
@@ -105,6 +126,7 @@ func (ex *HttpExport) Run(requestParams map[string]any, callback func(ctx contex
 		records := make([]map[string]any, 0)
 		err = json.Unmarshal(data, &records)
 		if err != nil {
+			err = errors.WithMessagef(err, "ex.proxy.Request response type want:[]map[string]any,got:%s", string(data))
 			return err
 		}
 		exchangeData := &excelrw.ExchangeData{

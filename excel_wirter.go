@@ -44,10 +44,10 @@ func (fs FieldMetas) MinColIndex() (minColIndex int) {
 	if len(fs) > 0 {
 		return fs[0].ColNumber
 	}
-	return 0
+	return 1 // 最小从1开始
 }
 
-//ValidateFieldMetas 验证字符串是否符合 FieldMetas 格式,供调用方接收入参时验证
+// ValidateFieldMetas 验证字符串是否符合 FieldMetas 格式,供调用方接收入参时验证
 func ValidateFieldMetas(fieldMetasStr string) (err error) {
 	fieldMetas := make(FieldMetas, 0)
 	err = json.Unmarshal([]byte(fieldMetasStr), &fieldMetas)
@@ -64,7 +64,7 @@ func NewExcelWriter() (writer *_ExcelWriter) {
 	return &_ExcelWriter{}
 }
 
-//GetRowNumber  获取下一次可以写入的行号
+// GetRowNumber  获取下一次可以写入的行号
 func (excelWriter *_ExcelWriter) GetRowNumber(fd *excelize.File, sheet string) (rowNumber int, err error) {
 	rows, err := fd.Rows(sheet)
 	if err != nil {
@@ -120,7 +120,7 @@ func (excelWriter *_ExcelWriter) RemoveRow(fd *excelize.File, sheet string, row 
 	return
 }
 
-//WriteAll  一次性全部写入文件（只负责写入，不负责保存和关闭文件，外部需要调用fd.Save()方法）
+// WriteAll  一次性全部写入文件（只负责写入，不负责保存和关闭文件，外部需要调用fd.Save()方法）
 func (excelWriter *_ExcelWriter) WriteAll(fd *excelize.File, sheet string, fieldMetas FieldMetas, data ExchangeData) (nextRowNumber int, err error) {
 	streamWriter, _, err := excelWriter.getStreamWriter(fd, sheet)
 	if err != nil {
@@ -160,7 +160,7 @@ func (excelWriter *_ExcelWriter) WriteAll(fd *excelize.File, sheet string, field
 	return
 }
 
-//Write2streamWriter 向写入流中写入数据
+// Write2streamWriter 向写入流中写入数据
 func (excelWriter *_ExcelWriter) Write2streamWriter(streamWriter *excelize.StreamWriter, fieldMetas FieldMetas, chanelData ExchangeData) (nextRowNumber int, err error) {
 	fieldMetas.Sort()
 	colLen := fieldMetas.Len()
@@ -190,7 +190,7 @@ func (excelWriter *_ExcelWriter) Write2streamWriter(streamWriter *excelize.Strea
 	return
 }
 
-//getStreamWriter 打开文件流，将已有的数据填写到流内，返回写入流
+// getStreamWriter 打开文件流，将已有的数据填写到流内，返回写入流
 func (excelWriter *_ExcelWriter) getStreamWriter(fd *excelize.File, sheet string) (streamWriter *excelize.StreamWriter, nextRowNumber int, err error) {
 	streamWriter, err = fd.NewStreamWriter(sheet)
 	if err != nil {
@@ -224,7 +224,7 @@ func (excelWriter *_ExcelWriter) getStreamWriter(fd *excelize.File, sheet string
 	return streamWriter, nextRowNumber, nil
 }
 
-//ExchangeData 程序和excel文件数据交换媒介
+// ExchangeData 程序和excel文件数据交换媒介
 type ExchangeData struct {
 	Data      []map[string]any
 	RowNumber int
