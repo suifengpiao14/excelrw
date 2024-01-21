@@ -3,35 +3,46 @@ package export
 import (
 	"context"
 	"encoding/json"
+	"reflect"
 	"time"
 
 	"github.com/pkg/errors"
 
 	"github.com/suifengpiao14/excelrw"
 	"github.com/suifengpiao14/httpraw"
+	"github.com/suifengpiao14/stream"
+	"github.com/suifengpiao14/stream/packet"
+	"github.com/suifengpiao14/stream/packet/yaegipacket"
 )
 
+type SuccessFinishCallbackFn func(ctx context.Context) (err error)
+type FailFinishCallbackFn func(ctx context.Context, beforErr error) (err error)
+
 type HttpExportIn struct {
-	Tpl              string
-	CurlhookImpl     httpraw.CURLHookI
-	CallbackTpl      string
-	CallbackHookImpl httpraw.CURLHookI
-	ExcelFilename    string
-	FieldMetas       excelrw.FieldMetas
-	RequestInterval  time.Duration // 循环请求获取数据的间隔时间
-	Timeout          time.Duration // 任务处理最长时间
+	Tpl             string
+	Script          string
+	CallbackTpl     string
+	CallbackScript  string
+	ExcelFilename   string
+	FieldMetas      excelrw.FieldMetas
+	RequestInterval time.Duration // 循环请求获取数据的间隔时间
+	Timeout         time.Duration // 任务处理最长时间
 }
 
 type HttpExport struct {
-	proxy           *httpraw.HttpProxy
-	excelWriteChan  *excelrw.ExcelChanWriter
-	startRowNumber  int
-	callbackProxy   *httpraw.HttpProxy
-	Timeout         time.Duration // 任务处理最长时间
-	context         context.Context
-	RequestInterval time.Duration // 循环请求获取数据的间隔时间
-	CancelFunc      context.CancelFunc
-	err             error // 异步执行的错误记录
+	excelWriteChan          *excelrw.ExcelChanWriter
+	startRowNumber          int
+	Timeout                 time.Duration // 任务处理最长时间
+	context                 context.Context
+	RequestInterval         time.Duration // 循环请求获取数据的间隔时间
+	CancelFunc              context.CancelFunc
+	err                     error                   // 异步执行的错误记录
+	successFinishCallbackFn SuccessFinishCallbackFn // 成功导出完成后回调函数
+	failFinishCallbackFn    FailFinishCallbackFn    // 导出失败后回调函数
+	proxyInitStream         stream.PacketHandlers   // 代理请求前处理链路,将template 转换为 http json data
+	proxyStream             stream.PacketHandlers   // 代理请求处理链路
+	runingProxyHttpJson     *[]byte                 // 记录实际请求时的请求配置数据,用于下次基于此作修改
+	callbackStream          stream.PacketHandlers   // 回调处理链路
 }
 
 // AsyncError 获取异步错误信息
@@ -41,15 +52,16 @@ func (ex *HttpExport) AsyncError() (err error) {
 
 var MaxLoopTimes = 100000 // 最大循环次数，超过这个次数退出循环，并抛出错误
 
-func NewHttpExport(ctx context.Context, exportIn HttpExportIn, option *excelrw.ExcelChanWriterOption) (ex *HttpExport, err error) {
+func NewHttpExport(ctx context.Context, exportIn HttpExportIn, option *excelrw.ExcelChanWriterOption, callbackHandlers stream.PacketHandlers) (ex *HttpExport, err error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	ex = &HttpExport{
-		Timeout: exportIn.Timeout,
-		context: ctx,
+		Timeout:        exportIn.Timeout,
+		context:        ctx,
+		callbackStream: callbackHandlers,
 	}
-	if exportIn.RequestInterval > 0 {
+	if exportIn.Timeout > 0 {
 		timeoutErr := errors.Errorf("proxy export time out")
 		ex.context, ex.CancelFunc = context.WithTimeoutCause(ex.context, exportIn.Timeout, timeoutErr)
 	}
@@ -59,48 +71,99 @@ func NewHttpExport(ctx context.Context, exportIn HttpExportIn, option *excelrw.E
 	if err != nil {
 		return nil, err
 	}
-
-	proxy, err := httpraw.NewHttpProxy(exportIn.Tpl, exportIn.CurlhookImpl)
+	ex.excelWriteChan = ecw
+	ex.startRowNumber = beginRowNumber
+	ex.proxyInitStream, ex.proxyStream, err = NewHttprawPacketHandlers(exportIn.Tpl)
 	if err != nil {
 		return nil, err
 	}
-	ex.proxy = proxy
-	ex.excelWriteChan = ecw
-	ex.startRowNumber = beginRowNumber
+	// 增加获取当前请求数据(请求前截取)
+	ex.proxyStream.InsertBefore(0, packet.NewFuncPacketHandler(func(ctx context.Context, input []byte) (newCtx context.Context, out []byte, err error) {
+		ex.runingProxyHttpJson = &input
+		return ctx, input, nil
+	}, nil))
 
-	if exportIn.CallbackTpl != "" { // 增加回调配置
-		ex.callbackProxy, err = httpraw.NewHttpProxy(exportIn.CallbackTpl, exportIn.CallbackHookImpl)
+	if exportIn.Script != "" {
+		yaegiHandler, err := yaegipacket.NewCurlHookYaegi(exportIn.Script) // 修改http json 请求和响应数据
 		if err != nil {
 			return nil, err
 		}
+		ex.proxyStream.InsertBefore(0, yaegiHandler) // 插入动态脚本处理流程
 	}
+
+	if exportIn.CallbackTpl == "" {
+		return ex, nil
+	}
+
 	return ex, nil
 }
 
-func (ex *HttpExport) AsyncRun(requestParams map[string]any, callback func(ctx context.Context) (callbackParams map[string]any, err error)) (err error) {
+func (ex *HttpExport) AsyncRun(proxyParams string, callbackParams string) {
 	go func() {
 		defer func() {
 			if re := recover(); re != nil {
 				ex.err = errors.Errorf("%v+", re)
 			}
 		}()
-		ex.err = ex.Run(requestParams, callback)
+		ex.err = ex.Run(proxyParams, callbackParams)
 	}()
-
-	return nil
 }
 
-func (ex *HttpExport) Run(requestParams map[string]any, callback func(ctx context.Context) (callbackParams map[string]any, err error)) (err error) {
-	reqDTO, err := ex.proxy.RequestDTO(requestParams)
+func (ex *HttpExport) SetFinishCallbackFn(successFinishCallbackFn SuccessFinishCallbackFn, failFinishCallbackFn FailFinishCallbackFn) {
+	ex.successFinishCallbackFn = successFinishCallbackFn
+	ex.failFinishCallbackFn = failFinishCallbackFn
+}
+
+var ERROR_FINISHED = errors.New("export finished")
+
+func NewHttprawPacketHandlers(tpl string) (requesHook stream.PacketHandlers, requestHandler stream.PacketHandlers, err error) {
+	requesHook = make(stream.PacketHandlers, 0)
+	requestHandler = make(stream.PacketHandlers, 0)
+	if tpl == "" {
+		return
+	}
+
+	httpTpl, err := httpraw.NewHttpTpl(tpl)
+	if err != nil {
+		return nil, nil, err
+	}
+	//http proxy 请求 前流程处理,将tpl 转为 http json
+	tplHandler := packet.NewTemplatePacketHandler(*httpTpl.Template, reflect.TypeOf(make(map[string]any)))
+	requesHook.Append(tplHandler)                       //解析模板,输出标准的 http 协议文本
+	requesHook.Append(packet.NewHttprawPacketHandler()) // http 协议文本转标准的json格式数据
+
+	// http proxy 请求流程处理,将 http json 经过修改后发器http请求,并格式化http response body 返回
+
+	/*if exportIn.Script != "" {
+		yaegiHandler, err := yaegipacket.NewCurlHookYaegi(exportIn.Script) // 修改http json 请求和响应数据
+		if err != nil {
+			return nil, err
+		}
+		packHandlers.Append(yaegiHandler)
+	}*/
+	requestHandler.Append(packet.NewRestyPacketHandler(nil)) // 应用http json 发起curl请求,返回response body
+	return requesHook, requestHandler, nil
+
+}
+
+func (ex *HttpExport) Run(proxyParams string, callbackParams string) (err error) {
+
+	s := stream.NewStream(nil, ex.proxyInitStream...)
+
+	httpJson, err := s.Run(ex.context, []byte(proxyParams))
 	if err != nil {
 		return err
 	}
 
+	defer func() {
+		if err != nil && ex.failFinishCallbackFn != nil { // 如果失败回调不为空,导出出错后执行结束回调(方便更新数据库状态)
+			err = ex.failFinishCallbackFn(ex.context, err)
+		}
+	}()
+
 	maxCount := -1
 	beginRowNumber := ex.startRowNumber
-	var data []byte // 经过动态脚本格式化原始http body后返回的数据
 	loop := 0
-
 	for {
 		select {
 		case <-ex.context.Done(): // 监听上下文取消
@@ -114,19 +177,16 @@ func (ex *HttpExport) Run(requestParams map[string]any, callback func(ctx contex
 			err = errors.Errorf("The number of cycles exceeded %d , increase the MaxLoopTimes value or detect whether dynamic scripts incrementally update page info", MaxLoopTimes)
 			return err
 		}
-		requestParams["__loop__"] = loop                                 // 记录循环次数
-		reqDTO, data, err = ex.proxy.Request(reqDTO, requestParams, nil) //reqDTO 使用上次格式化的reqDTO,简化动态脚本递增+1翻页
+		s := stream.NewStream(nil, ex.proxyStream...)
+		data, err := s.Run(ex.context, httpJson)
 		if err != nil {
-			err = errors.WithMessage(err, "ex.proxy.Request")
 			return err
 		}
-		if data == nil {
-			break // 数据为空 跳出循环
-		}
+		httpJson = *ex.runingProxyHttpJson // 替换成本次请求的http json 供下次循环使用
 		records := make([]map[string]any, 0)
 		err = json.Unmarshal(data, &records)
 		if err != nil {
-			err = errors.WithMessagef(err, "ex.proxy.Request response type want:[]map[string]any,got:%s", string(data))
+			err = errors.WithMessagef(err, "ex.proxyStream response type want:[]map[string]any,got:%s", string(data))
 			return err
 		}
 		exchangeData := &excelrw.ExchangeData{
@@ -149,24 +209,17 @@ func (ex *HttpExport) Run(requestParams map[string]any, callback func(ctx contex
 	if err == nil {
 		return err
 	}
-
-	var callbackParams map[string]any
-	if callback != nil {
-		callbackParams, err = callback(ex.context)
-		if err != nil {
-			return err
-		}
+	err = ex.successFinishCallbackFn(ex.context)
+	if err != nil {
+		return err
 	}
-
-	if ex.callbackProxy != nil {
-		callbackReqDTO, err := ex.callbackProxy.RequestDTO(callbackParams)
-		if err != nil {
-			return err
-		}
-		_, _, err = ex.callbackProxy.Request(callbackReqDTO, callbackParams, nil)
-		if err != nil {
-			return err
-		}
+	if len(ex.callbackStream) < 1 { // 没有回调,直接返回
+		return nil
+	}
+	callbackStream := stream.NewStream(nil, ex.callbackStream...)
+	_, err = callbackStream.Run(ex.context, []byte(callbackParams))
+	if err != nil {
+		return err
 	}
 
 	return nil
