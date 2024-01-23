@@ -1,12 +1,14 @@
 package export
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"reflect"
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/tidwall/sjson"
 
 	"github.com/suifengpiao14/excelrw"
 	"github.com/suifengpiao14/httpraw"
@@ -41,7 +43,7 @@ type HttpExport struct {
 	failFinishCallbackFn    FailFinishCallbackFn    // 导出失败后回调函数
 	proxyInitStream         stream.PacketHandlers   // 代理请求前处理链路,将template 转换为 http json data
 	proxyStream             stream.PacketHandlers   // 代理请求处理链路
-	runingProxyHttpJson     *[]byte                 // 记录实际请求时的请求配置数据,用于下次基于此作修改
+	runingProxyHttpJson     []byte                  // 记录实际请求时的请求配置数据,用于下次基于此作修改
 	callbackStream          stream.PacketHandlers   // 回调处理链路
 }
 
@@ -52,14 +54,13 @@ func (ex *HttpExport) AsyncError() (err error) {
 
 var MaxLoopTimes = 100000 // 最大循环次数，超过这个次数退出循环，并抛出错误
 
-func NewHttpExport(ctx context.Context, exportIn HttpExportIn, option *excelrw.ExcelChanWriterOption, callbackHandlers stream.PacketHandlers) (ex *HttpExport, err error) {
+func NewHttpExport(ctx context.Context, exportIn HttpExportIn, option *excelrw.ExcelChanWriterOption) (ex *HttpExport, err error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	ex = &HttpExport{
-		Timeout:        exportIn.Timeout,
-		context:        ctx,
-		callbackStream: callbackHandlers,
+		Timeout: exportIn.Timeout,
+		context: ctx,
 	}
 	if exportIn.Timeout > 0 {
 		timeoutErr := errors.Errorf("proxy export time out")
@@ -79,7 +80,7 @@ func NewHttpExport(ctx context.Context, exportIn HttpExportIn, option *excelrw.E
 	}
 	// 增加获取当前请求数据(请求前截取)
 	ex.proxyStream.InsertBefore(0, packet.NewFuncPacketHandler(func(ctx context.Context, input []byte) (newCtx context.Context, out []byte, err error) {
-		ex.runingProxyHttpJson = &input
+		ex.runingProxyHttpJson = input
 		return ctx, input, nil
 	}, nil))
 
@@ -94,7 +95,21 @@ func NewHttpExport(ctx context.Context, exportIn HttpExportIn, option *excelrw.E
 	if exportIn.CallbackTpl == "" {
 		return ex, nil
 	}
-
+	callbackStream := make(stream.PacketHandlers, 0)
+	callbackInitStream, callbackRequestStream, err := NewHttprawPacketHandlers(exportIn.CallbackTpl)
+	if err != nil {
+		return nil, err
+	}
+	if exportIn.CallbackScript != "" {
+		yaegiHandler, err := yaegipacket.NewCurlHookYaegi(exportIn.CallbackScript) // 修改http json 请求和响应数据
+		if err != nil {
+			return nil, err
+		}
+		callbackRequestStream.InsertBefore(0, yaegiHandler) // 插入动态脚本处理流程
+	}
+	callbackStream.Append(callbackInitStream...)
+	callbackStream.Append(callbackRequestStream...)
+	ex.callbackStream = callbackStream
 	return ex, nil
 }
 
@@ -134,13 +149,6 @@ func NewHttprawPacketHandlers(tpl string) (requesHook stream.PacketHandlers, req
 
 	// http proxy 请求流程处理,将 http json 经过修改后发器http请求,并格式化http response body 返回
 
-	/*if exportIn.Script != "" {
-		yaegiHandler, err := yaegipacket.NewCurlHookYaegi(exportIn.Script) // 修改http json 请求和响应数据
-		if err != nil {
-			return nil, err
-		}
-		packHandlers.Append(yaegiHandler)
-	}*/
 	requestHandler.Append(packet.NewRestyPacketHandler(nil)) // 应用http json 发起curl请求,返回response body
 	return requesHook, requestHandler, nil
 
@@ -177,12 +185,20 @@ func (ex *HttpExport) Run(proxyParams string, callbackParams string) (err error)
 			err = errors.Errorf("The number of cycles exceeded %d , increase the MaxLoopTimes value or detect whether dynamic scripts incrementally update page info", MaxLoopTimes)
 			return err
 		}
+		httpJson, err = sjson.SetBytes(httpJson, "__loop__", loop)
+		if err != nil {
+			return err
+		}
 		s := stream.NewStream(nil, ex.proxyStream...)
 		data, err := s.Run(ex.context, httpJson)
 		if err != nil {
 			return err
 		}
-		httpJson = *ex.runingProxyHttpJson // 替换成本次请求的http json 供下次循环使用
+		if bytes.EqualFold(httpJson, ex.runingProxyHttpJson) && loop > 1 { // 此处简单的检测是否完全相等，仅只能避免部分死循环，准确应该想办法检测分页页码,loop 等于1 时可能传入的正好是初始化值，无需修改，之后还没修改，则可能陷入死循环
+			err = errors.New("The parameters of the loop request remain unchanged, which can lead to a dead loop,use dynamic script alter it")
+			return err
+		}
+		httpJson = ex.runingProxyHttpJson // 替换成本次请求的http json 供下次循环使用
 		records := make([]map[string]any, 0)
 		err = json.Unmarshal(data, &records)
 		if err != nil {
@@ -195,11 +211,13 @@ func (ex *HttpExport) Run(proxyParams string, callbackParams string) (err error)
 		}
 		exchangeData.Data = records
 		beginRowNumber = ex.excelWriteChan.SendData(exchangeData)
-		if maxCount < 0 {
-			maxCount = len(records)
+		dataCount := len(records)
+		if dataCount == 0 || maxCount > dataCount {
+			break // 请求数据返回空或者返回条数小于之前的 说明数据已经获取完毕
+		}
+		if maxCount < 0 { // 初始化每页数据条数
+			maxCount = dataCount
 
-		} else if maxCount > len(records) {
-			break //后面
 		}
 		if ex.RequestInterval > 0 {
 			time.Sleep(ex.RequestInterval) //休眠指定时间

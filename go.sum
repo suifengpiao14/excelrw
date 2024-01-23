@@ -259,8 +259,8 @@ github.com/suifengpiao14/sqlexec v0.0.10 h1:9sbn1jLGJtLiZmX3t2Z8C4SExlgRdhLXfpqX
 github.com/suifengpiao14/sqlexec v0.0.10/go.mod h1:juH/yHoTjBWMzMibOZ7EOAZ1hWZIm3DIxxeBum39X5Q=
 github.com/suifengpiao14/sqlplus v0.0.10 h1:XtTQQDp1FQ4UST4YQ2Kq3tUBf1SZ7qUnx37ZRi3yPFY=
 github.com/suifengpiao14/sqlplus v0.0.10/go.mod h1:rpScV4fnziPcyR7B+khAtCYJAaXwGx2fzm1tNKImdoU=
-github.com/suifengpiao14/stream v0.0.42 h1:0CXbDqnKe/FE51fr/S+7jeDKPOMrbhQch94ALsEAe5g=
-github.com/suifengpiao14/stream v0.0.42/go.mod h1:hyzURapEANRb2PFAPMHzTodK7ejLY46zjRqHFOl1lA4=
+github.com/suifengpiao14/stream v0.0.43 h1:imhp4WodsLqy457s9EkPmYW4IrvOVjQtVgi+Zvhs49s=
+github.com/suifengpiao14/stream v0.0.43/go.mod h1:hyzURapEANRb2PFAPMHzTodK7ejLY46zjRqHFOl1lA4=
 github.com/suifengpiao14/torm v0.0.23 h1:UFCh/CsKwN2PL6VfgXE8pmZCvmdHrdWNTf0enhIXSyc=
 github.com/suifengpiao14/torm v0.0.23/go.mod h1:Gsftw5F93l2snHrymxjjii1IJgQMHnkA5TfurNEjspY=
 github.com/tidwall/gjson v1.14.2/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=

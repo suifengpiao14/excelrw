@@ -293,14 +293,6 @@ func (ecw *ExcelChanWriter) Finish() (err error) {
 	if ecw.err != nil {
 		return ecw.err
 	}
-	err = ecw.streamWriter.Flush()
-	if err != nil {
-		return err
-	}
-	err = ecw.fd.Save()
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -342,6 +334,15 @@ func (ecw *ExcelChanWriter) subChan() {
 			if result := recover(); result != nil {
 				ecw.err = errors.New(fmt.Sprintf("%v+", result))
 
+			}
+			// 退出前,先保存数据
+			err := ecw.streamWriter.Flush()
+			if err != nil {
+				ecw.err = err
+			}
+			err = ecw.fd.Save()
+			if err != nil {
+				ecw.err = err
 			}
 			ecw.finishSignal <- struct{}{} // 通知已经完成数据写入
 		}()
