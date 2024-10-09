@@ -7,7 +7,11 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-//OpenReader 打开excel 文件(通过post过来的临时文件句柄打开文件)
+const (
+	SheetDefault = "sheet1"
+)
+
+// OpenReader 打开excel 文件(通过post过来的临时文件句柄打开文件)
 func OpenReader(r io.Reader) (f *excelize.File, err error) {
 	f, err = excelize.OpenReader(r)
 	if err != nil {
@@ -66,7 +70,7 @@ func (instance *_ExcelReader) Read(f *excelize.File, sheet string, fieldMap map[
 	return output, nil
 }
 
-//UnmergeCell 将合并单元格展开，值填充到每个展开的单元内
+// UnmergeCell 将合并单元格展开，值填充到每个展开的单元内
 func (instance *_ExcelReader) UnmergeCell(f *excelize.File, sheet string) (err error) {
 	mergeCells, err := f.GetMergeCells(sheet)
 	if err != nil {
