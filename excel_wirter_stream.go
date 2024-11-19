@@ -182,6 +182,7 @@ type ExcelStreamWriter struct {
 	streamWriter      *excelize.StreamWriter
 	context           context.Context
 	fetcher           FetcherFn
+	interval          time.Duration
 	asyncErrorHandler func(err error)
 	maxLoopCount      int // 最大循环次数
 }
@@ -242,6 +243,10 @@ func (ecw *ExcelStreamWriter) WithDeleteFile(delay time.Duration) *ExcelStreamWr
 
 func (ecw *ExcelStreamWriter) WithFetcher(fetcher FetcherFn) *ExcelStreamWriter {
 	ecw.fetcher = fetcher
+	return ecw
+}
+func (ecw *ExcelStreamWriter) WithInterval(interval time.Duration) *ExcelStreamWriter {
+	ecw.interval = interval
 	return ecw
 }
 
@@ -341,6 +346,9 @@ func (ecw *ExcelStreamWriter) loop() (err error) {
 		ecw.nextRowNumber, err = ecw.writeData(ecw.nextRowNumber, data)
 		if err != nil {
 			return err
+		}
+		if ecw.interval > 0 {
+			time.Sleep(ecw.interval)
 		}
 	}
 	err = ecw.save()
