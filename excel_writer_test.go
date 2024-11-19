@@ -27,8 +27,8 @@ func TestWriteWithChan(t *testing.T) {
 	}
 	ctx := context.Background()
 	ecw := excelrw.NewExcelStreamWriter(ctx, filename, fieldMetas)
-	ecw.WithFetcher(func(loopIndex int) (rows []map[string]string, err error) {
-		return data, nil
+	ecw.WithFetcher(func(loopIndex int) (currentPageIndex int, rows []map[string]string, err error) {
+		return 0, data, nil
 	})
 	err = ecw.Run()
 	require.NoError(t, err)

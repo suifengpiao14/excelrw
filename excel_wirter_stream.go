@@ -167,6 +167,8 @@ func (excelWriter *_ExcelWriter) GetStreamWriter(fd *excelize.File, sheet string
 	return streamWriter, nextRowNumber, nil
 }
 
+type FetcherFn func(prevPageIndex int) (currentPageIndex int, rows []map[string]string, err error)
+
 type ExcelStreamWriter struct {
 	fd                *excelize.File
 	excelWriter       *_ExcelWriter
@@ -179,8 +181,9 @@ type ExcelStreamWriter struct {
 	nextRowNumber     int
 	streamWriter      *excelize.StreamWriter
 	context           context.Context
-	fetcher           func(loopIndex int) (rows []map[string]string, err error)
+	fetcher           FetcherFn
 	asyncErrorHandler func(err error)
+	maxLoopCount      int // 最大循环次数
 }
 
 func NewExcelStreamWriter(ctx context.Context, filename string, fieldMetas FieldMetas) (ecw *ExcelStreamWriter) {
@@ -209,6 +212,20 @@ func (ecw *ExcelStreamWriter) WithTitleRow() *ExcelStreamWriter {
 	ecw.withTitleRow = true
 	return ecw
 }
+func (ecw *ExcelStreamWriter) WithMaxLoopCount(maxLoopCount int) *ExcelStreamWriter {
+	ecw.maxLoopCount = maxLoopCount
+	return ecw
+}
+
+var DefalutMaxLoopCountLimit = 1000000 //最多循环次数限制
+
+func (ecw *ExcelStreamWriter) githMaxLoopCount() int {
+	if ecw.maxLoopCount > 0 {
+		return ecw.maxLoopCount
+	}
+
+	return DefalutMaxLoopCountLimit
+}
 
 func (ecw *ExcelStreamWriter) WithDeleteFile(delay time.Duration) *ExcelStreamWriter {
 	go func() {
@@ -223,7 +240,7 @@ func (ecw *ExcelStreamWriter) WithDeleteFile(delay time.Duration) *ExcelStreamWr
 	return ecw
 }
 
-func (ecw *ExcelStreamWriter) WithFetcher(fetcher func(loopIndex int) (rows []map[string]string, err error)) *ExcelStreamWriter {
+func (ecw *ExcelStreamWriter) WithFetcher(fetcher FetcherFn) *ExcelStreamWriter {
 	ecw.fetcher = fetcher
 	return ecw
 }
@@ -292,16 +309,31 @@ func (ecw *ExcelStreamWriter) Run() (err error) {
 }
 func (ecw *ExcelStreamWriter) loop() (err error) {
 	loopIndex := 0
+	maxLoopCount := ecw.githMaxLoopCount()
+	prevPageIndex := -1
 	for {
 		select {
 		case <-ecw.context.Done():
 			return ecw.context.Err()
 		default:
 		}
-		data, err := ecw.fetcher(loopIndex)
+
+		if loopIndex > maxLoopCount {
+			err = errors.Errorf("loop times is over limit:%d", maxLoopCount)
+			return err
+		}
+
+		currentPageIndex, data, err := ecw.fetcher(prevPageIndex)
 		if err != nil {
 			return err
 		}
+
+		if currentPageIndex <= prevPageIndex {
+			err = errors.New("pageNumber is not increase")
+			return err
+		}
+		prevPageIndex = currentPageIndex
+
 		if len(data) == 0 {
 			break
 		}
