@@ -1,42 +1,37 @@
 package excelrw_test
 
 import (
-  "context"
-  "encoding/json"
-  "testing"
+	"context"
+	"encoding/json"
+	"testing"
 
-  "github.com/stretchr/testify/require"
-  "github.com/suifengpiao14/excelrw"
+	"github.com/stretchr/testify/require"
+	"github.com/suifengpiao14/excelrw"
 )
 
 func TestWriteWithChan(t *testing.T) {
-  data := make([]map[string]any, 0)
+	data := make([]map[string]string, 0)
 
-  err := json.Unmarshal([]byte(jsonData), &data)
+	err := json.Unmarshal([]byte(jsonData), &data)
 
-  require.NoError(t, err)
-  filename := "./example/example.xlsx"
-  sheet := "sheet1"
-  fieldMetas := excelrw.FieldMetas{
-    {Name: "Fsort", Title: "排序"},
-    {Name: "Ftype", Title: "类型"},
-    {Name: "Funique_code", Title: "唯一值"},
-    {Name: "Fposition_code", Title: "位置"},
-    {Name: "Fposition_name", Title: "位置名称"},
-    {Name: "Fclass_key", Title: "分类key"},
-    {Name: "Fclass_name", Title: "分类名称"},
-  }
-  ctx := context.Background()
-  ecw, beginRowNumber, err := excelrw.NewExcelChanWriter(ctx, filename, sheet, fieldMetas, &excelrw.ExcelChanWriterOption{WithTitle: true, RemoveOldFile: true})
-  require.NoError(t, err)
-  exchangeData := excelrw.ExchangeData{
-    RowNumber: beginRowNumber,
-    Data:      data,
-  }
-  ecw.SendData(&exchangeData)
-
-  err = ecw.Finish()
-  require.NoError(t, err)
+	require.NoError(t, err)
+	filename := "./example/example.xlsx"
+	fieldMetas := excelrw.FieldMetas{
+		{Name: "Fsort", Title: "排序"},
+		{Name: "Ftype", Title: "类型"},
+		{Name: "Funique_code", Title: "唯一值"},
+		{Name: "Fposition_code", Title: "位置"},
+		{Name: "Fposition_name", Title: "位置名称"},
+		{Name: "Fclass_key", Title: "分类key"},
+		{Name: "Fclass_name", Title: "分类名称"},
+	}
+	ctx := context.Background()
+	ecw := excelrw.NewExcelStreamWriter(ctx, filename, fieldMetas)
+	ecw.WithFetcher(func(loopIndex int) (rows []map[string]string, err error) {
+		return data, nil
+	})
+	err = ecw.Run()
+	require.NoError(t, err)
 }
 
 var jsonData = `
