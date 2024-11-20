@@ -30,7 +30,7 @@ func TestWriteWithChan(t *testing.T) {
 	ecw.WithFetcher(func(loopIndex int) (currentPageIndex int, rows []map[string]string, err error) {
 		return 0, data, nil
 	})
-	err = ecw.Run()
+	_, err = ecw.Run()
 	require.NoError(t, err)
 }
 

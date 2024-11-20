@@ -174,16 +174,14 @@ type ExcelStreamWriter struct {
 	excelWriter       *_ExcelWriter
 	filename          string
 	sheet             string
-	async             bool
 	fieldMetas        FieldMetas
-	withTitleRow      bool
+	withoutTitleRow   bool
 	RemoveFileTimeout time.Duration
 	nextRowNumber     int
 	streamWriter      *excelize.StreamWriter
 	context           context.Context
 	fetcher           FetcherFn
 	interval          time.Duration
-	asyncErrorHandler func(err error)
 	maxLoopCount      int // 最大循环次数
 }
 
@@ -204,13 +202,9 @@ func (ecw *ExcelStreamWriter) WithSheet(sheet string) *ExcelStreamWriter {
 	ecw.sheet = sheet
 	return ecw
 }
-func (ecw *ExcelStreamWriter) WithAsync() *ExcelStreamWriter {
-	ecw.async = true
-	return ecw
-}
 
-func (ecw *ExcelStreamWriter) WithTitleRow() *ExcelStreamWriter {
-	ecw.withTitleRow = true
+func (ecw *ExcelStreamWriter) WithoutTitleRow() *ExcelStreamWriter {
+	ecw.withoutTitleRow = true
 	return ecw
 }
 func (ecw *ExcelStreamWriter) WithMaxLoopCount(maxLoopCount int) *ExcelStreamWriter {
@@ -228,14 +222,19 @@ func (ecw *ExcelStreamWriter) githMaxLoopCount() int {
 	return DefalutMaxLoopCountLimit
 }
 
-func (ecw *ExcelStreamWriter) WithDeleteFile(delay time.Duration) *ExcelStreamWriter {
+func (ecw *ExcelStreamWriter) WithDeleteFile(delay time.Duration, errorHandler func(err error)) *ExcelStreamWriter {
+	if errorHandler == nil {
+		errorHandler = func(err error) {
+			fmt.Println("ExcelStreamWriter.WithDeleteFile error", err)
+		}
+	}
 	go func() {
 		// 等待指定时间
 		time.Sleep(delay)
 		// 删除文件
 		err := os.Remove(ecw.filename)
 		if err != nil {
-			ecw.getAsyncErrorHandler()(err)
+			errorHandler(err)
 		}
 	}()
 	return ecw
@@ -248,20 +247,6 @@ func (ecw *ExcelStreamWriter) WithFetcher(fetcher FetcherFn) *ExcelStreamWriter 
 func (ecw *ExcelStreamWriter) WithInterval(interval time.Duration) *ExcelStreamWriter {
 	ecw.interval = interval
 	return ecw
-}
-
-func (ecw *ExcelStreamWriter) WithAsyncErrorHandler(asyncErrorHandler func(err error)) *ExcelStreamWriter {
-	ecw.asyncErrorHandler = asyncErrorHandler
-	return ecw
-}
-
-func (ecw *ExcelStreamWriter) getAsyncErrorHandler() func(err error) {
-	if ecw.asyncErrorHandler == nil {
-		ecw.asyncErrorHandler = func(err error) {
-			fmt.Println(" ExcelStreamWriter error:", err)
-		}
-	}
-	return ecw.asyncErrorHandler
 }
 
 func (ecw *ExcelStreamWriter) init() (err error) {
@@ -288,34 +273,34 @@ func (ecw *ExcelStreamWriter) init() (err error) {
 	return
 }
 
-func (ecw *ExcelStreamWriter) Run() (err error) {
+// Run 执行导出 ,返回错误通道,如果需要同步，则调用方只需同步等待errChan结果即可，若为异步执行，则调用方只需将errChan异步处理即可或者忽略
+func (ecw *ExcelStreamWriter) Run() (errChan chan error, err error) {
 
 	err = ecw.init()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if ecw.withTitleRow {
+	if !ecw.withoutTitleRow { // 默认写入标题行，除非明确标记不写入标题
 		err = ecw.addTitleRow()
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
-	if ecw.async {
-		go ecw.loop()
-	} else {
-		err = ecw.loop()
-		if err != nil {
-			return err
-		}
-	}
+	errChan = make(chan error)
+	go func() {
+		err := ecw.loop()
+		errChan <- err
+		close(errChan)
+	}()
 
-	return nil
+	return errChan, nil
 
 }
 func (ecw *ExcelStreamWriter) loop() (err error) {
 	loopIndex := 0
 	maxLoopCount := ecw.githMaxLoopCount()
 	prevPageIndex := -1
+	defer ecw.save()
 	for {
 		select {
 		case <-ecw.context.Done():
@@ -351,10 +336,7 @@ func (ecw *ExcelStreamWriter) loop() (err error) {
 			time.Sleep(ecw.interval)
 		}
 	}
-	err = ecw.save()
-	if err != nil {
-		return err
-	}
+
 	return nil
 }
 
