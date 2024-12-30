@@ -240,6 +240,7 @@ func (ecw *ExcelStreamWriter) WithDeleteFile(delay time.Duration, errorHandler f
 	return ecw
 }
 
+// WithFetcher 设置数据获取器，用于从数据库或其他地方获取数据并写入Excel文件,可以使用SliceAny2string辅助函数 在回调FetcherFn 中转换数据类型输出
 func (ecw *ExcelStreamWriter) WithFetcher(fetcher FetcherFn) *ExcelStreamWriter {
 	ecw.fetcher = fetcher
 	return ecw
