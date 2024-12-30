@@ -12,20 +12,32 @@ type User struct {
 	Age  int    `json:"age"`
 }
 
-func TestMapAny2string(t *testing.T) {
-	ma := []map[string]any{
-		{"name": "张三", "age": 18},
-		{"name": "李四", "age": 20},
-	}
-	rows := excelrw.MapAny2string(ma)
-	fmt.Println(rows)
-}
+func TestSliceAny2string(t *testing.T) {
+	t.Run("mapSlice2string", func(t *testing.T) {
 
-func TestStructSlice2mapRecords(t *testing.T) {
-	users := []User{
-		{Name: "张三", Age: 18},
-		{Name: "李四", Age: 20},
-	}
-	rows := excelrw.StructSlice2mapRecords(users)
-	fmt.Println(rows)
+		ma := []map[string]any{
+			{"name": "张三", "age": 18},
+			{"name": "李四", "age": 20},
+		}
+		rows := excelrw.SliceAny2string(ma)
+		fmt.Println(rows)
+	})
+
+	t.Run("structSlice2string", func(t *testing.T) {
+		us := []*User{
+			{"张三", 18},
+			{"李四", 20},
+		}
+		rows := excelrw.SliceAny2string(us)
+		fmt.Println(rows)
+	})
+	t.Run("any", func(t *testing.T) {
+		ma := []map[string]any{
+			{"name": "张三", "age": 18},
+			{"name": "李四", "age": 20},
+		}
+		an := any(ma)
+		rows := excelrw.SliceAny2string(an)
+		fmt.Println(rows)
+	})
 }
