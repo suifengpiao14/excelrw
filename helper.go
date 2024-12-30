@@ -11,7 +11,7 @@ import (
 func SliceAny2string(structSlice any) (newData []map[string]string) {
 	rv := reflect.Indirect(reflect.ValueOf(structSlice))
 	if rv.Kind() != reflect.Slice {
-		err := errors.Errorf("required struct slice, but got :%T", structSlice)
+		err := errors.Errorf("required []struct{}, []map[string]any, but got :%T", structSlice)
 		panic(err)
 	}
 
