@@ -27,7 +27,10 @@ func SliceAny2string(structSlice any) (newData []map[string]string) {
 		case reflect.Struct:
 			for j := 0; j < v.NumField(); j++ {
 				field := v.Type().Field(j)
-				key := field.Name
+				key := field.Tag.Get("json")
+				if key == "" {
+					key = field.Name
+				}
 				val := cast.ToString(v.Field(j).Interface())
 				row[key] = val
 			}
