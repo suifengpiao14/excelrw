@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cast"
 )
 
+// SliceAny2string 将 []struct{}, []map[string]any 转成 []map[string]string
 func SliceAny2string(structSlice any) (newData []map[string]string) {
 	rv := reflect.Indirect(reflect.ValueOf(structSlice))
 	if rv.Kind() != reflect.Slice {
