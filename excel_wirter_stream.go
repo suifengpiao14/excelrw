@@ -13,16 +13,18 @@ import (
 )
 
 type FieldMeta struct {
-	ColNumber int    `json:"colNumber"` // 列号(数字,1开始) 增加json tag,可方便调用方验证输入是否符合格式
-	Name      string `json:"name"`      // 列名称
-	Title     string `json:"title"`     // 列标题
+	_ColNumber int    //`json:"colNumber"` // 列号(数字,1开始) 增加json tag,可方便调用方验证输入是否符合格式 2025-3-11 内部使用的字段，暴露出去后接入方不会有疑惑，因此先改成私有字段。 调用方验证的方便性，通过增加GetColNumber方法代替。
+	Name       string `json:"name"`  // 列名称
+	Title      string `json:"title"` // 列标题
 }
+
+func (fm FieldMeta) GetColNumber() int { return fm._ColNumber }
 
 type FieldMetas []FieldMeta
 
 func (a FieldMetas) Len() int           { return len(a) }
 func (a FieldMetas) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a FieldMetas) Less(i, j int) bool { return a[i].ColNumber < a[j].ColNumber }
+func (a FieldMetas) Less(i, j int) bool { return a[i]._ColNumber < a[j]._ColNumber }
 
 func (fs *FieldMetas) Sort() {
 	fs.InitColIndex()
@@ -41,8 +43,8 @@ func (fs FieldMetas) MakeTitleRow() map[string]string {
 // InitColIndex 默认使用序号作为colNumber
 func (fs *FieldMetas) InitColIndex() {
 	for i, fieldMeta := range *fs {
-		if fieldMeta.ColNumber < 1 {
-			(*fs)[i].ColNumber = i + 1
+		if fieldMeta._ColNumber < 1 {
+			(*fs)[i]._ColNumber = i + 1
 		}
 	}
 }
@@ -51,7 +53,7 @@ func (fs *FieldMetas) InitColIndex() {
 func (fs FieldMetas) MinColIndex() (minColIndex int) {
 	sort.Sort(fs)
 	if len(fs) > 0 {
-		return fs[0].ColNumber
+		return fs[0]._ColNumber
 	}
 	return 1 // 最小从1开始
 }
@@ -113,7 +115,7 @@ func (excelWriter *_ExcelWriter) Write2streamWriter(streamWriter *excelize.Strea
 		// 组装一行数据
 		row := make([]any, colLen)
 		for _, fieldMeta := range fieldMetas {
-			k := fieldMeta.ColNumber - 1
+			k := fieldMeta._ColNumber - 1
 			row[k] = record[fieldMeta.Name]
 		}
 
