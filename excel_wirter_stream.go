@@ -204,6 +204,9 @@ func (ecw *ExcelStreamWriter) WithSheet(sheet string) *ExcelStreamWriter {
 	ecw.sheet = sheet
 	return ecw
 }
+func (ecw ExcelStreamWriter) GetFilename() string {
+	return ecw.filename
+}
 
 func (ecw *ExcelStreamWriter) WithoutTitleRow() *ExcelStreamWriter {
 	ecw.withoutTitleRow = true
