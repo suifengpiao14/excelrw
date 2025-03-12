@@ -19,7 +19,7 @@ func TestSliceAny2string(t *testing.T) {
 			{"name": "张三", "age": 18},
 			{"name": "李四", "age": 20},
 		}
-		rows := excelrw.SliceAny2string(ma)
+		rows := excelrw.SliceAny2stringMust(ma)
 		fmt.Println(rows)
 	})
 
@@ -28,7 +28,7 @@ func TestSliceAny2string(t *testing.T) {
 			{"张三", 18},
 			{"李四", 20},
 		}
-		rows := excelrw.SliceAny2string(us)
+		rows := excelrw.SliceAny2stringMust(us)
 		fmt.Println(rows)
 	})
 	t.Run("any", func(t *testing.T) {
@@ -37,7 +37,7 @@ func TestSliceAny2string(t *testing.T) {
 			{"name": "李四", "age": 20},
 		}
 		an := any(ma)
-		rows := excelrw.SliceAny2string(an)
+		rows := excelrw.SliceAny2stringMust(an)
 		fmt.Println(rows)
 	})
 }
