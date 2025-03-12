@@ -7,7 +7,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-type FetcherDataFn func(currentPageIndex int, param map[string]any) (rows any, err error) // 格式化请求参数、请求数据、返回数据
+type FetcherDataFn func(currentPageIndex int, param map[string]any) (rows any, err error) // 格式化请求参数、请求数据、返回数据 rows 为 []struct{} 或者 []map[string]any 格式
 type CallBackFn func(param map[string]any) (err error)                                    // 回调函数，用于处理数据导出后的后续操作
 
 type ExportExcel struct {
