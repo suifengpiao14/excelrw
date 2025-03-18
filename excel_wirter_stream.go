@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"time"
+	"unicode/utf8"
 
 	"github.com/pkg/errors"
 	"github.com/xuri/excelize/v2"
@@ -16,9 +17,17 @@ type FieldMeta struct {
 	_ColNumber int    //`json:"colNumber"` // 列号(数字,1开始) 增加json tag,可方便调用方验证输入是否符合格式 2025-3-11 内部使用的字段，暴露出去后接入方不会有疑惑，因此先改成私有字段。 调用方验证的方便性，通过增加GetColNumber方法代替。
 	Name       string `json:"name"`  // 列名称
 	Title      string `json:"title"` // 列标题
+	maxSize    int    // 当前列字符串最多的个数(用来调整列宽)
+
 }
 
 func (fm FieldMeta) GetColNumber() int { return fm._ColNumber }
+func (fm FieldMeta) GetMaxSize() int   { return fm.maxSize }
+func (fm *FieldMeta) SetMaxSize(size int) {
+	if fm.maxSize < size {
+		fm.maxSize = size
+	}
+}
 
 type FieldMetas []FieldMeta
 
@@ -114,9 +123,11 @@ func (excelWriter *_ExcelWriter) Write2streamWriter(streamWriter *excelize.Strea
 	for _, record := range rows {
 		// 组装一行数据
 		row := make([]any, colLen)
-		for _, fieldMeta := range fieldMetas {
-			k := fieldMeta._ColNumber - 1
-			row[k] = record[fieldMeta.Name]
+		for i := 0; i < colLen; i++ {
+			k := minColIndex - 1
+			content := record[fieldMetas[i].Name]
+			row[k] = content
+			fieldMetas[i].SetMaxSize(utf8.RuneCountInString(content))
 		}
 
 		// 获取当前行开始写入单元地址
@@ -172,19 +183,21 @@ func (excelWriter *_ExcelWriter) GetStreamWriter(fd *excelize.File, sheet string
 type FetcherFn func(prevPageIndex int) (currentPageIndex int, rows []map[string]string, err error)
 
 type ExcelStreamWriter struct {
-	fd                *excelize.File
-	excelWriter       *_ExcelWriter
-	filename          string
-	sheet             string
-	fieldMetas        FieldMetas
-	withoutTitleRow   bool
-	RemoveFileTimeout time.Duration
-	nextRowNumber     int
-	streamWriter      *excelize.StreamWriter
-	context           context.Context
-	fetcher           FetcherFn
-	interval          time.Duration
-	maxLoopCount      int // 最大循环次数
+	fd                         *excelize.File
+	excelWriter                *_ExcelWriter
+	filename                   string
+	sheet                      string
+	fieldMetas                 FieldMetas
+	withoutTitleRow            bool
+	RemoveFileTimeout          time.Duration
+	_WithAutoAdjustColumnWidth bool // 是否自动调整列宽，默认为false
+
+	nextRowNumber int
+	streamWriter  *excelize.StreamWriter
+	context       context.Context
+	fetcher       FetcherFn
+	interval      time.Duration
+	maxLoopCount  int // 最大循环次数
 }
 
 func NewExcelStreamWriter(ctx context.Context, filename string, fieldMetas FieldMetas) (ecw *ExcelStreamWriter) {
@@ -204,6 +217,10 @@ func (ecw *ExcelStreamWriter) WithSheet(sheet string) *ExcelStreamWriter {
 	ecw.sheet = sheet
 	return ecw
 }
+func (ecw *ExcelStreamWriter) WithAutoAdjustColumnWidth() *ExcelStreamWriter {
+	ecw._WithAutoAdjustColumnWidth = true
+	return ecw
+}
 func (ecw ExcelStreamWriter) GetFilename() string {
 	return ecw.filename
 }
@@ -212,6 +229,14 @@ func (ecw *ExcelStreamWriter) WithoutTitleRow() *ExcelStreamWriter {
 	ecw.withoutTitleRow = true
 	return ecw
 }
+
+func (ecw *ExcelStreamWriter) AutoAdjustColumnWidth() {
+	for _, fieldMeta := range ecw.fieldMetas {
+		col, _ := excelize.ColumnNumberToName(fieldMeta._ColNumber)
+		ecw.fd.SetColWidth(ecw.sheet, col, col, float64(fieldMeta.maxSize*256)) // 乘以256，因为excel的列宽是以1/256个字符宽度为单位的。
+	}
+}
+
 func (ecw *ExcelStreamWriter) WithMaxLoopCount(maxLoopCount int) *ExcelStreamWriter {
 	ecw.maxLoopCount = maxLoopCount
 	return ecw
@@ -341,6 +366,10 @@ func (ecw *ExcelStreamWriter) loop() (err error) {
 		if ecw.interval > 0 {
 			time.Sleep(ecw.interval)
 		}
+	}
+
+	if ecw._WithAutoAdjustColumnWidth {
+		ecw.AutoAdjustColumnWidth()
 	}
 
 	return nil

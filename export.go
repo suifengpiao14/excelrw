@@ -11,7 +11,7 @@ type FetcherDataFn func(currentPageIndex int, param map[string]any) (rows []map[
 type CallBackFn func(params map[string]any) error                                                         // 回调函数，用于处理数据导出后的后续操作
 
 type ExportExcel struct {
-	Filename        string          `json:"filename"`
+	filename        string          // 文件名称可能和具体导出场景有关,如导出操作用户id，所以改成get/set 方式处理
 	Titles          FieldMetas      `json:"titles"`
 	Interval        time.Duration   `json:"interval"`
 	DeleteFileDelay time.Duration   `json:"deleteFileDelay"`
@@ -21,8 +21,16 @@ type ExportExcel struct {
 
 }
 
+func (exportExcel *ExportExcel) SetFilename(filename string) {
+	exportExcel.filename = filename
+}
+
+func (exportExcel ExportExcel) GetFilename() (filename string) {
+	return exportExcel.filename
+}
+
 func (exportExcel ExportExcel) Export(params map[string]any) (excelFielname string, err error) {
-	if exportExcel.Filename == "" {
+	if exportExcel.filename == "" {
 		err = errors.Errorf("filename required")
 		return "", err
 	}
@@ -36,7 +44,7 @@ func (exportExcel ExportExcel) Export(params map[string]any) (excelFielname stri
 	}
 
 	ctx := context.Background()
-	ecw := NewExcelStreamWriter(ctx, exportExcel.Filename, exportExcel.Titles)
+	ecw := NewExcelStreamWriter(ctx, exportExcel.filename, exportExcel.Titles).WithAutoAdjustColumnWidth()
 	ecw = ecw.WithInterval(exportExcel.Interval).WithDeleteFile(exportExcel.DeleteFileDelay, exportExcel.ErrorHandler).WithFetcher(func(prevPageIndex int) (curentPageIndex int, rows []map[string]string, err error) {
 		curentPageIndex = prevPageIndex + 1
 		if curentPageIndex < 0 {
@@ -63,5 +71,5 @@ func (exportExcel ExportExcel) Export(params map[string]any) (excelFielname stri
 		}
 	}
 	excelFielname = ecw.GetFilename()
-	return excelFielname, err
+	return excelFielname, nil
 }
