@@ -44,7 +44,7 @@ func (exportExcel ExportExcel) Export(params map[string]any) (excelFielname stri
 	}
 
 	ctx := context.Background()
-	ecw := NewExcelStreamWriter(ctx, exportExcel.filename, exportExcel.Titles).WithAutoAdjustColumnWidth()
+	ecw := NewExcelStreamWriter(ctx, exportExcel.filename, exportExcel.Titles)
 	ecw = ecw.WithInterval(exportExcel.Interval).WithDeleteFile(exportExcel.DeleteFileDelay, exportExcel.ErrorHandler).WithFetcher(func(loopCount int) (rows []map[string]string, err error) {
 		rows, err = exportExcel.FetcherDataFn(loopCount, params)
 		if err != nil {

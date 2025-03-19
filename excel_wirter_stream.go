@@ -5,22 +5,29 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/pkg/errors"
 	"github.com/xuri/excelize/v2"
 )
 
 type FieldMeta struct {
-	Name    string  `json:"name"`  // 列名称
-	Title   string  `json:"title"` // 列标题
-	maxSize float64 // 当前列字符串最多的个数(用来调整列宽)
+	Name    string `json:"name"`  // 列名称
+	Title   string `json:"title"` // 列标题
+	maxSize int    // 当前列字符串最多的个数(用来调整列宽)
 
 }
 
-func (fm FieldMeta) GetMaxSize() float64 { return fm.maxSize }
-func (fm *FieldMeta) SetMaxSize(size float64) {
+func (fm FieldMeta) GetMaxSize() int { return fm.maxSize }
+
+var ColumnMaxSize = 100 // 列宽最大值
+
+func (fm *FieldMeta) SetMaxSize(size int) {
+	if size > ColumnMaxSize {
+		size = ColumnMaxSize // 列宽最大值限制
+
+	}
 	if fm.maxSize < size {
 		fm.maxSize = size
 	}
@@ -85,6 +92,23 @@ func (excelWriter *_ExcelWriter) RemoveRow(fd *excelize.File, sheet string, row 
 	return
 }
 
+func (excelWriter *_ExcelWriter) SetColWidth(streamWriter *excelize.StreamWriter, fieldMetas FieldMetas) (err error) {
+	colLen := len(fieldMetas)
+	for i := 0; i < colLen; i++ {
+		fieldMeta := fieldMetas[i]
+		maxSize := fieldMeta.GetMaxSize()
+		if maxSize > 0 {
+			col := i + 1
+			err = streamWriter.SetColWidth(col, col, float64(maxSize)) // 设置列宽
+
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // Write2streamWriter 向写入流中写入数据
 func (excelWriter *_ExcelWriter) Write2streamWriter(streamWriter *excelize.StreamWriter, fieldMetas FieldMetas, rowNumber int, rows []map[string]string) (nextRowNumber int, err error) {
 	colLen := len(fieldMetas)
@@ -94,11 +118,7 @@ func (excelWriter *_ExcelWriter) Write2streamWriter(streamWriter *excelize.Strea
 		// 组装一行数据
 		row := make([]any, colLen)
 		for i := 0; i < colLen; i++ {
-			fieldMeta := &fieldMetas[i]
-			content := record[fieldMeta.Name]
-			row[i] = content
-			maxSize := float64(utf8.RuneCountInString(content))
-			fieldMeta.SetMaxSize(maxSize)
+			row[i] = record[fieldMetas[i].Name]
 		}
 
 		// 获取当前行开始写入单元地址
@@ -154,14 +174,13 @@ func (excelWriter *_ExcelWriter) GetStreamWriter(fd *excelize.File, sheet string
 type FetcherFn func(loopCount int) (rows []map[string]string, err error)
 
 type ExcelStreamWriter struct {
-	fd                         *excelize.File
-	excelWriter                *_ExcelWriter
-	filename                   string
-	sheet                      string
-	fieldMetas                 FieldMetas
-	withoutTitleRow            bool
-	RemoveFileTimeout          time.Duration
-	_WithAutoAdjustColumnWidth bool // 是否自动调整列宽，默认为false
+	fd                *excelize.File
+	excelWriter       *_ExcelWriter
+	filename          string
+	sheet             string
+	fieldMetas        FieldMetas
+	withoutTitleRow   bool
+	RemoveFileTimeout time.Duration
 
 	nextRowNumber int
 	streamWriter  *excelize.StreamWriter
@@ -187,10 +206,7 @@ func (ecw *ExcelStreamWriter) WithSheet(sheet string) *ExcelStreamWriter {
 	ecw.sheet = sheet
 	return ecw
 }
-func (ecw *ExcelStreamWriter) WithAutoAdjustColumnWidth() *ExcelStreamWriter {
-	ecw._WithAutoAdjustColumnWidth = true
-	return ecw
-}
+
 func (ecw ExcelStreamWriter) GetFilename() string {
 	return ecw.filename
 }
@@ -212,6 +228,35 @@ func (ecw *ExcelStreamWriter) AutoAdjustColumnWidth() (err error) {
 		}
 	}
 	return nil
+}
+
+// CalFieldMetaMaxSize 计算字段最大长度，用于自动调整列宽
+func (ecw *ExcelStreamWriter) CalFieldMetaMaxSize(rows []map[string]string) {
+	for i := 0; i < len(ecw.fieldMetas); i++ {
+		key := ecw.fieldMetas[i].Name
+		for _, record := range rows {
+			content := record[key]
+			lineIndex := strings.Index(content, "\n")
+			if lineIndex > 0 {
+				content = content[:lineIndex]
+			}
+			maxSize := len(content)
+			if isNumber(content) {
+				maxSize += 3 // 数字(如身份证)额外增加3个字符宽度，以便于显示美观
+
+			}
+			ecw.fieldMetas[i].SetMaxSize(maxSize)
+		}
+	}
+}
+
+func isNumber(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func (ecw *ExcelStreamWriter) WithMaxLoopCount(maxLoopCount int) *ExcelStreamWriter {
@@ -288,12 +333,6 @@ func (ecw *ExcelStreamWriter) Run() (errChan chan error, err error) {
 	if err != nil {
 		return nil, err
 	}
-	if !ecw.withoutTitleRow { // 默认写入标题行，除非明确标记不写入标题
-		err = ecw.addTitleRow()
-		if err != nil {
-			return nil, err
-		}
-	}
 	errChan = make(chan error)
 	go func() {
 		err := ecw.loop()
@@ -323,9 +362,23 @@ func (ecw *ExcelStreamWriter) loop() (err error) {
 		if err != nil {
 			return err
 		}
+		if loopCount == 1 { // 第一次循环 ,写在len(data) == 0之前,确保需要写入标题时，一定会写入标题行数据,方便调试和测试)
+			if !ecw.withoutTitleRow { // 第一次循环，增加标题行数据
+				data = append([]map[string]string{ecw.getTitleRow()}, data...) //添加到第一行
+			}
+			// 使用第一次数据作为样本(包含标题和实际数据),计算最大列宽
+			ecw.CalFieldMetaMaxSize(data)
+			// 设置列宽(必须在写入数据之前调用)
+			err = ecw.setColWidth()
+			if err != nil {
+				return err
+			}
+		}
+
 		if len(data) == 0 {
 			break
 		}
+
 		ecw.nextRowNumber, err = ecw.writeData(ecw.nextRowNumber, data)
 		if err != nil {
 			return err
@@ -334,20 +387,16 @@ func (ecw *ExcelStreamWriter) loop() (err error) {
 			time.Sleep(ecw.interval)
 		}
 	}
-	if ecw._WithAutoAdjustColumnWidth { // 此处未生效，后续再优化
-		err = ecw.AutoAdjustColumnWidth()
-		if err != nil {
-			return err
-		}
-	}
 
 	return nil
 }
 
-func (ecw *ExcelStreamWriter) addTitleRow() (err error) {
-	row := ecw.fieldMetas.MakeTitleRow()
-	rows := []map[string]string{row}
-	ecw.nextRowNumber, err = ecw.excelWriter.Write2streamWriter(ecw.streamWriter, ecw.fieldMetas, ecw.nextRowNumber, rows) //更新nextRowNumber
+func (ecw *ExcelStreamWriter) getTitleRow() (row map[string]string) {
+	row = ecw.fieldMetas.MakeTitleRow()
+	return row
+}
+func (ecw *ExcelStreamWriter) setColWidth() (err error) {
+	err = ecw.excelWriter.SetColWidth(ecw.streamWriter, ecw.fieldMetas) // 设置列宽(必须在写入数据之前调用)
 	if err != nil {
 		return err
 	}
