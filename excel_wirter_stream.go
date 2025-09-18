@@ -94,7 +94,7 @@ func (excelWriter *_ExcelWriter) RemoveRow(fd *excelize.File, sheet string, row 
 
 func (excelWriter *_ExcelWriter) SetColWidth(streamWriter *excelize.StreamWriter, fieldMetas FieldMetas) (err error) {
 	colLen := len(fieldMetas)
-	for i := 0; i < colLen; i++ {
+	for i := range colLen {
 		fieldMeta := fieldMetas[i]
 		maxSize := fieldMeta.GetMaxSize()
 		if maxSize > 0 {
@@ -171,7 +171,7 @@ func (excelWriter *_ExcelWriter) GetStreamWriter(fd *excelize.File, sheet string
 	return streamWriter, nextRowNumber, nil
 }
 
-type FetcherFn func(loopCount int) (rows []map[string]string, err error)
+type FetcherFn func(loopCount int) (rows []map[string]string, forceBreak bool, err error)
 
 type ExcelStreamWriter struct {
 	fd                *excelize.File
@@ -204,6 +204,10 @@ func NewExcelStreamWriter(ctx context.Context, filename string, fieldMetas Field
 
 func (ecw *ExcelStreamWriter) WithSheet(sheet string) *ExcelStreamWriter {
 	ecw.sheet = sheet
+	return ecw
+}
+func (ecw *ExcelStreamWriter) WithFieldMetas(fieldMetas FieldMetas) *ExcelStreamWriter {
+	ecw.fieldMetas = fieldMetas
 	return ecw
 }
 
@@ -266,7 +270,7 @@ func (ecw *ExcelStreamWriter) WithMaxLoopCount(maxLoopCount int) *ExcelStreamWri
 
 var DefalutMaxLoopCountLimit = 1000000 //最多循环次数限制
 
-func (ecw *ExcelStreamWriter) githMaxLoopCount() int {
+func (ecw *ExcelStreamWriter) gethMaxLoopCount() int {
 	if ecw.maxLoopCount > 0 {
 		return ecw.maxLoopCount
 	}
@@ -275,6 +279,9 @@ func (ecw *ExcelStreamWriter) githMaxLoopCount() int {
 }
 
 func (ecw *ExcelStreamWriter) WithDeleteFile(delay time.Duration, errorHandler func(err error)) *ExcelStreamWriter {
+	if delay <= 0 {
+		return ecw
+	}
 	if errorHandler == nil {
 		errorHandler = func(err error) {
 			fmt.Println("ExcelStreamWriter.WithDeleteFile error", err)
@@ -302,10 +309,15 @@ func (ecw *ExcelStreamWriter) WithInterval(interval time.Duration) *ExcelStreamW
 	return ecw
 }
 
-func (ecw *ExcelStreamWriter) init() (err error) {
+func (ecw *ExcelStreamWriter) GetFiledMetas() (fields FieldMetas, err error) {
 	if ecw.fieldMetas == nil {
-		return errors.New("fieldMetas is nil")
+		return fields, errors.New("fieldMetas is nil")
 	}
+	return ecw.fieldMetas, nil
+}
+
+func (ecw *ExcelStreamWriter) init() (err error) {
+
 	if ecw.fetcher == nil {
 		return errors.New("fetcher is nil")
 	}
@@ -345,7 +357,7 @@ func (ecw *ExcelStreamWriter) Run() (errChan chan error, err error) {
 }
 func (ecw *ExcelStreamWriter) loop() (err error) {
 	loopCount := 0
-	maxLoopCount := ecw.githMaxLoopCount()
+	maxLoopCount := ecw.gethMaxLoopCount()
 	defer ecw.save()
 	for {
 		select {
@@ -358,7 +370,7 @@ func (ecw *ExcelStreamWriter) loop() (err error) {
 			return err
 		}
 		loopCount++
-		data, err := ecw.fetcher(loopCount)
+		data, forceBreak, err := ecw.fetcher(loopCount)
 		if err != nil {
 			return err
 		}
@@ -383,6 +395,9 @@ func (ecw *ExcelStreamWriter) loop() (err error) {
 		if err != nil {
 			return err
 		}
+		if forceBreak {
+			break
+		}
 		if ecw.interval > 0 {
 			time.Sleep(ecw.interval)
 		}
@@ -404,7 +419,11 @@ func (ecw *ExcelStreamWriter) setColWidth() (err error) {
 }
 
 func (ecw *ExcelStreamWriter) writeData(rowNumber int, rows []map[string]string) (nextRowNumber int, err error) {
-	nextRowNumber, err = ecw.excelWriter.Write2streamWriter(ecw.streamWriter, ecw.fieldMetas, rowNumber, rows)
+	fieldMetas, err := ecw.GetFiledMetas()
+	if err != nil {
+		return 0, err
+	}
+	nextRowNumber, err = ecw.excelWriter.Write2streamWriter(ecw.streamWriter, fieldMetas, rowNumber, rows)
 	if err != nil {
 		return 0, err
 	}
