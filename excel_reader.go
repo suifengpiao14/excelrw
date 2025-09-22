@@ -28,7 +28,7 @@ func NewExcelReader() *_ExcelReader {
 	return &_ExcelReader{}
 }
 
-// Read 读取excel 表中所有数据 fieldMap key 为 a、b、c等excel列名称,value为这列转换为记录的属性名
+// Read 读取excel 表中所有数据 fieldMap key 为 a、b、c等excel列名称,value为这列转换为记录的属性名  UnmergeCell 将合并单元格展开，值填充到每个展开的单元内
 func (instance *_ExcelReader) Read(f *excelize.File, sheet string, fieldMap map[string]string, rowIndex int, isUnmergeCell bool) ([]map[string]string, error) {
 	if isUnmergeCell {
 		err := instance.UnmergeCell(f, sheet)
