@@ -159,12 +159,11 @@ type Response struct {
 	MiddlewareFuncs apihttpprotocol.MiddlewareFuncsResponseMessage `json:"-"` // 请求中间件函数列表，一般可以使用动态脚本生成
 }
 
+var Export_config_table sqlbuilder.TableConfig = repository.Export_config_table
+
 // MakeExportApiIn 生成导出配置信息
-func MakeExportApiIn(in MakeExportApiInArgs, tableRef *sqlbuilder.TableConfig) (exportApiIn ExportApiIn, err error) {
-	if tableRef == nil {
-		tableRef = &repository.Export_config_table
-	}
-	exportConfigRepository := repository.NewExportConfigRepository(*tableRef)
+func MakeExportApiIn(in MakeExportApiInArgs, table sqlbuilder.TableConfig) (exportApiIn ExportApiIn, err error) {
+	exportConfigRepository := repository.NewExportConfigRepository(table)
 	getIn := repository.ExportConfigRepositoryGetIn{
 		ConfigKey: in.ConfigKey,
 	}
