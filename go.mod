@@ -10,7 +10,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cast v1.10.0
 	github.com/stretchr/testify v1.10.0
-	github.com/suifengpiao14/apihttpprotocol v0.0.6
+	github.com/suifengpiao14/apihttpprotocol v0.0.7
 	github.com/suifengpiao14/commonlanguage v0.0.21
 	github.com/suifengpiao14/sqlbuilder v0.2.10
 	github.com/suifengpiao14/yaegijson v0.0.5

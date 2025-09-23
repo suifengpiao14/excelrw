@@ -110,24 +110,18 @@ func (m ExportConfigModel) ParseFilename(context ...any) (filename string, err e
 	return filename, nil
 }
 
-func (m ExportConfigModel) ParseMiddleware() (requestMiddlewareH apihttpprotocol.HandlerFunc[apihttpprotocol.RequestMessage], responseMiddlewareH apihttpprotocol.HandlerFunc[apihttpprotocol.ResponseMessage], err error) {
+func (m ExportConfigModel) ParseMiddleware() (requestMiddleware apihttpprotocol.HandlerFunc[apihttpprotocol.RequestMessage], responseMiddleware apihttpprotocol.HandlerFunc[apihttpprotocol.ResponseMessage], err error) {
 	dynamicHook := dynamichook.DynamicHook{
 		ReqeustMiddlewareName:   "excelrwhook.RequestMiddleware",
 		ResponseMiddlewareName:  "excelrwhook.ResponseMiddleware",
 		DynamicExtensionHttpRaw: &yaegijson.Extension{},
 	}
 
-	requestMiddleware, responseMiddleware, err := dynamicHook.MakeMiddleware()
+	requestMiddleware, responseMiddleware, err = dynamicHook.MakeMiddleware()
 	if err != nil {
 		return nil, nil, err
 	}
-	if requestMiddleware != nil {
-		requestMiddlewareH = requestMiddleware.HandlerFunc()
-	}
-	if responseMiddleware != nil {
-		responseMiddlewareH = responseMiddleware.HandlerFunc()
-	}
-	return requestMiddlewareH, responseMiddlewareH, nil
+	return requestMiddleware, responseMiddleware, nil
 }
 
 type ExportConfigModels []ExportConfigModel

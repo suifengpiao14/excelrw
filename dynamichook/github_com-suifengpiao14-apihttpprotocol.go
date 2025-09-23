@@ -35,8 +35,6 @@ func init() {
 		// type definitions
 		"ClientProtocol":               reflect.ValueOf((*apihttpprotocol.ClientProtocol)(nil)),
 		"ContextReqeustMessageKeyType": reflect.ValueOf((*apihttpprotocol.ContextReqeustMessageKeyType)(nil)),
-		"HandlerFuncRequestMessage":    reflect.ValueOf((*apihttpprotocol.HandlerFuncRequestMessage)(nil)),
-		"HandlerFuncResponseMessage":   reflect.ValueOf((*apihttpprotocol.HandlerFuncResponseMessage)(nil)),
 		"HttpError":                    reflect.ValueOf((*apihttpprotocol.HttpError)(nil)),
 		"LogI":                         reflect.ValueOf((*apihttpprotocol.LogI)(nil)),
 		"LogIgnore":                    reflect.ValueOf((*apihttpprotocol.LogIgnore)(nil)),
