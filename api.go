@@ -82,14 +82,14 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 		if len(fieldMetas) == 0 && len(data) > 0 {
 			firstRow := data[0]
 			for key := range firstRow.Map() {
-				fieldMetas = append(fieldMetas, defined.FieldMeta{Name: key, Title: key})
+				fieldMetas = append(fieldMetas, defined.FieldMeta{ValueTpl: key, Title: key})
 			}
 			ecw = ecw.WithFieldMetas(fieldMetas)
 		}
 		for _, row := range data {
 			rowMap := make(map[string]string)
-			for _, fieldMeta := range fieldMetas {
-				rowMap[fieldMeta.Name] = row.Get(fieldMeta.Name).String()
+			for k, v := range row.Map() {
+				rowMap[k] = v.String()
 				items = append(items, rowMap)
 			}
 		}

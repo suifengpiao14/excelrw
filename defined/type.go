@@ -1,13 +1,45 @@
 package defined
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+
+	"github.com/hoisie/mustache"
+)
 
 type FieldMeta struct {
-	Name    string `json:"name"`  // 列名称
-	Title   string `json:"title"` // 列标题
-	maxSize int    // 当前列字符串最多的个数(用来调整列宽)
+	Title    string `json:"title"`    // 列标题
+	ValueTpl string `json:"valueTpl"` // 列值模板，例如：{{nameField}}({{idField}}),如果只有一个字段，则可以省略{{}}
+	maxSize  int    // 当前列字符串最多的个数(用来调整列宽)
+	template *mustache.Template
+	err      error
 }
 
+func (fm *FieldMeta) parseTpl() *mustache.Template {
+	if fm.template != nil {
+		return fm.template
+	}
+	tpl := fm.ValueTpl
+	if !strings.Contains(fm.ValueTpl, "{{") {
+		tpl = fmt.Sprintf(`{{%s}}`, fm.ValueTpl)
+	}
+
+	fm.template, fm.err = mustache.ParseString(tpl)
+	return fm.template
+}
+
+func (fm FieldMeta) GetValue(rowNumber int, row map[string]string) string {
+	if fm.err != nil {
+		return fm.err.Error()
+	}
+	if value, ok := row[fm.ValueTpl]; ok {
+		return value
+	}
+	m := map[string]any{"__rowNumber": rowNumber}
+	value := fm.parseTpl().Render(row, m)
+	return value
+}
 func (fm FieldMeta) GetMaxSize() int { return fm.maxSize }
 
 var ColumnMaxSize = 100 // 列宽最大值
@@ -27,7 +59,7 @@ type FieldMetas []FieldMeta
 func (fs FieldMetas) MakeTitleRow() map[string]string {
 	m := make(map[string]string)
 	for _, fieldMeta := range fs {
-		m[fieldMeta.Name] = fieldMeta.Title
+		m[fieldMeta.ValueTpl] = fieldMeta.Title
 	}
 	return m
 

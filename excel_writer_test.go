@@ -18,20 +18,21 @@ func TestWriteWithChan(t *testing.T) {
 	require.NoError(t, err)
 	filename := "./example/example.xlsx"
 	fieldMetas := defined.FieldMetas{
-		{Name: "Fsort", Title: "排序"},
-		{Name: "Ftype", Title: "类型"},
-		{Name: "Funique_code", Title: "唯一值"},
-		{Name: "Fposition_code", Title: "位置"},
-		{Name: "Fposition_name", Title: "位置名称"},
-		{Name: "Fclass_key", Title: "分类key"},
-		{Name: "Fclass_name", Title: "分类名称"},
+		{ValueTpl: "__rowNumber", Title: "序号"},
+		{ValueTpl: "Fsort", Title: "排序"},
+		{ValueTpl: "Ftype", Title: "类型"},
+		{ValueTpl: "Funique_code", Title: "唯一值"},
+		{ValueTpl: "{{Fposition_name}}({{Fposition_code}})", Title: "位置名称(位置)"},
+		{ValueTpl: "{{Fclass_name}}({{Fclass_key}})", Title: "分类名称(分类key)"},
 	}
 	ctx := context.Background()
 	ecw := excelrw.NewExcelStreamWriter(ctx, filename, fieldMetas)
 	ecw.WithFetcher(func(loopIndex int) (rows []map[string]string, forceBreak bool, err error) {
-		return data, false, nil
+		return data, true, nil
 	})
-	_, err = ecw.Run()
+	errChan, err := ecw.Run()
+	require.NoError(t, err)
+	err = <-errChan
 	require.NoError(t, err)
 }
 
@@ -53,7 +54,7 @@ var jsonData = `
     "Fposition_name": "整机（包含配件）",
     "Fclass_key": "key_camera",
     "Fclass_name": "相机",
-    "Fsort": "2"
+    "Fsort": "3"
   },
   {
     "Ftype": "12",
@@ -62,7 +63,7 @@ var jsonData = `
     "Fposition_name": "左侧面",
     "Fclass_key": "key_camera",
     "Fclass_name": "相机",
-    "Fsort": "3"
+    "Fsort": "2"
   },
   {
     "Ftype": "12",
@@ -71,7 +72,7 @@ var jsonData = `
     "Fposition_name": "右侧面",
     "Fclass_key": "key_camera",
     "Fclass_name": "相机",
-    "Fsort": "4"
+    "Fsort": "5"
   },
   {
     "Ftype": "12",
@@ -80,7 +81,7 @@ var jsonData = `
     "Fposition_name": "顶部",
     "Fclass_key": "key_camera",
     "Fclass_name": "相机",
-    "Fsort": "5"
+    "Fsort": "10"
   },
   {
     "Ftype": "12",

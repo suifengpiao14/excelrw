@@ -79,15 +79,19 @@ func (excelWriter *_ExcelWriter) SetColWidth(streamWriter *excelize.StreamWriter
 }
 
 // Write2streamWriter 向写入流中写入数据
-func (excelWriter *_ExcelWriter) Write2streamWriter(streamWriter *excelize.StreamWriter, fieldMetas defined.FieldMetas, rowNumber int, rows []map[string]string) (nextRowNumber int, err error) {
+func (excelWriter *_ExcelWriter) Write2streamWriter(streamWriter *excelize.StreamWriter, fieldMetas defined.FieldMetas, withTitleRow bool, rowNumber int, rows []map[string]string) (nextRowNumber int, err error) {
 	colLen := len(fieldMetas)
 	minColIndex := 1
 
 	for _, record := range rows {
 		// 组装一行数据
 		row := make([]any, colLen)
-		for i := 0; i < colLen; i++ {
-			row[i] = record[fieldMetas[i].Name]
+		dataRaw := rowNumber
+		if withTitleRow {
+			dataRaw = rowNumber - 1
+		}
+		for i := range colLen {
+			row[i] = fieldMetas[i].GetValue(dataRaw, record)
 		}
 
 		// 获取当前行开始写入单元地址
@@ -206,7 +210,7 @@ func (ecw *ExcelStreamWriter) AutoAdjustColumnWidth() (err error) {
 // CalFieldMetaMaxSize 计算字段最大长度，用于自动调整列宽
 func (ecw *ExcelStreamWriter) CalFieldMetaMaxSize(rows []map[string]string) {
 	for i := 0; i < len(ecw.fieldMetas); i++ {
-		key := ecw.fieldMetas[i].Name
+		key := ecw.fieldMetas[i].ValueTpl
 		for _, record := range rows {
 			content := record[key]
 			lineIndex := strings.Index(content, "\n")
@@ -392,7 +396,7 @@ func (ecw *ExcelStreamWriter) writeData(rowNumber int, rows []map[string]string)
 	if err != nil {
 		return 0, err
 	}
-	nextRowNumber, err = ecw.excelWriter.Write2streamWriter(ecw.streamWriter, fieldMetas, rowNumber, rows)
+	nextRowNumber, err = ecw.excelWriter.Write2streamWriter(ecw.streamWriter, fieldMetas, !ecw.withoutTitleRow, rowNumber, rows)
 	if err != nil {
 		return 0, err
 	}
