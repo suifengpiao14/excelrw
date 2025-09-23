@@ -9,40 +9,9 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/suifengpiao14/excelrw/defined"
 	"github.com/xuri/excelize/v2"
 )
-
-type FieldMeta struct {
-	Name    string `json:"name"`  // 列名称
-	Title   string `json:"title"` // 列标题
-	maxSize int    // 当前列字符串最多的个数(用来调整列宽)
-
-}
-
-func (fm FieldMeta) GetMaxSize() int { return fm.maxSize }
-
-var ColumnMaxSize = 100 // 列宽最大值
-
-func (fm *FieldMeta) SetMaxSize(size int) {
-	if size > ColumnMaxSize {
-		size = ColumnMaxSize // 列宽最大值限制
-
-	}
-	if fm.maxSize < size {
-		fm.maxSize = size
-	}
-}
-
-type FieldMetas []FieldMeta
-
-func (fs FieldMetas) MakeTitleRow() map[string]string {
-	m := make(map[string]string)
-	for _, fieldMeta := range fs {
-		m[fieldMeta.Name] = fieldMeta.Title
-	}
-	return m
-
-}
 
 type _ExcelWriter struct{}
 
@@ -92,7 +61,7 @@ func (excelWriter *_ExcelWriter) RemoveRow(fd *excelize.File, sheet string, row 
 	return
 }
 
-func (excelWriter *_ExcelWriter) SetColWidth(streamWriter *excelize.StreamWriter, fieldMetas FieldMetas) (err error) {
+func (excelWriter *_ExcelWriter) SetColWidth(streamWriter *excelize.StreamWriter, fieldMetas defined.FieldMetas) (err error) {
 	colLen := len(fieldMetas)
 	for i := range colLen {
 		fieldMeta := fieldMetas[i]
@@ -110,7 +79,7 @@ func (excelWriter *_ExcelWriter) SetColWidth(streamWriter *excelize.StreamWriter
 }
 
 // Write2streamWriter 向写入流中写入数据
-func (excelWriter *_ExcelWriter) Write2streamWriter(streamWriter *excelize.StreamWriter, fieldMetas FieldMetas, rowNumber int, rows []map[string]string) (nextRowNumber int, err error) {
+func (excelWriter *_ExcelWriter) Write2streamWriter(streamWriter *excelize.StreamWriter, fieldMetas defined.FieldMetas, rowNumber int, rows []map[string]string) (nextRowNumber int, err error) {
 	colLen := len(fieldMetas)
 	minColIndex := 1
 
@@ -178,7 +147,7 @@ type ExcelStreamWriter struct {
 	excelWriter       *_ExcelWriter
 	filename          string
 	sheet             string
-	fieldMetas        FieldMetas
+	fieldMetas        defined.FieldMetas
 	withoutTitleRow   bool
 	RemoveFileTimeout time.Duration
 
@@ -190,7 +159,7 @@ type ExcelStreamWriter struct {
 	maxLoopCount  int // 最大循环次数
 }
 
-func NewExcelStreamWriter(ctx context.Context, filename string, fieldMetas FieldMetas) (ecw *ExcelStreamWriter) {
+func NewExcelStreamWriter(ctx context.Context, filename string, fieldMetas defined.FieldMetas) (ecw *ExcelStreamWriter) {
 	excelWriter := NewExcelWriter()
 	ecw = &ExcelStreamWriter{
 		excelWriter: excelWriter,
@@ -206,7 +175,7 @@ func (ecw *ExcelStreamWriter) WithSheet(sheet string) *ExcelStreamWriter {
 	ecw.sheet = sheet
 	return ecw
 }
-func (ecw *ExcelStreamWriter) WithFieldMetas(fieldMetas FieldMetas) *ExcelStreamWriter {
+func (ecw *ExcelStreamWriter) WithFieldMetas(fieldMetas defined.FieldMetas) *ExcelStreamWriter {
 	ecw.fieldMetas = fieldMetas
 	return ecw
 }
@@ -225,7 +194,7 @@ func (ecw *ExcelStreamWriter) AutoAdjustColumnWidth() (err error) {
 		columnNumber := i + 1
 		col, _ := excelize.ColumnNumberToName(columnNumber)
 		colMax, _ := excelize.ColumnNumberToName(columnNumber + 1)
-		maxSize := fieldMeta.maxSize                                       // 测试使用
+		maxSize := fieldMeta.GetMaxSize()                                  // 测试使用
 		err = ecw.fd.SetColWidth(ecw.sheet, col, colMax, float64(maxSize)) // 乘以256，因为excel的列宽是以1/256个字符宽度为单位的。
 		if err != nil {
 			return err
@@ -309,7 +278,7 @@ func (ecw *ExcelStreamWriter) WithInterval(interval time.Duration) *ExcelStreamW
 	return ecw
 }
 
-func (ecw *ExcelStreamWriter) GetFiledMetas() (fields FieldMetas, err error) {
+func (ecw *ExcelStreamWriter) GetFiledMetas() (fields defined.FieldMetas, err error) {
 	if ecw.fieldMetas == nil {
 		return fields, errors.New("fieldMetas is nil")
 	}

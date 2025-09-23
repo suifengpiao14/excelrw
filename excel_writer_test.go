@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/suifengpiao14/excelrw"
+	"github.com/suifengpiao14/excelrw/defined"
 )
 
 func TestWriteWithChan(t *testing.T) {
@@ -16,7 +17,7 @@ func TestWriteWithChan(t *testing.T) {
 
 	require.NoError(t, err)
 	filename := "./example/example.xlsx"
-	fieldMetas := excelrw.FieldMetas{
+	fieldMetas := defined.FieldMetas{
 		{Name: "Fsort", Title: "排序"},
 		{Name: "Ftype", Title: "类型"},
 		{Name: "Funique_code", Title: "唯一值"},

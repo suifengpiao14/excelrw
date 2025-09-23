@@ -5,22 +5,23 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/suifengpiao14/excelrw/defined"
 )
 
 type FetcherDataFn func(loopCount int, param map[string]any) (rows []map[string]string, forceBreak bool, err error) // 格式化请求参数、请求数据、返回数据 rows 为 []struct{} 或者 []map[string]any 格式
 type CallBackFn func(params map[string]any) error                                                                   // 回调函数，用于处理数据导出后的后续操作
 
 type ExportExcel struct {
-	filename        string          // 文件名称可能和具体导出场景有关,如导出操作用户id，所以改成get/set 方式处理
-	Titles          FieldMetas      `json:"titles"`
-	Interval        time.Duration   `json:"interval"`
-	DeleteFileDelay time.Duration   `json:"deleteFileDelay"`
-	ErrorHandler    func(err error) // 处理错误
-	FetcherDataFn   FetcherDataFn   // 格式化请求参数、请求数据、返回数据
-	CallBackFn      CallBackFn      // 回调函数，用于处理数据导出后的后续操作
+	filename        string             // 文件名称可能和具体导出场景有关,如导出操作用户id，所以改成get/set 方式处理
+	Titles          defined.FieldMetas `json:"titles"`
+	Interval        time.Duration      `json:"interval"`
+	DeleteFileDelay time.Duration      `json:"deleteFileDelay"`
+	ErrorHandler    func(err error)    // 处理错误
+	FetcherDataFn   FetcherDataFn      // 格式化请求参数、请求数据、返回数据
+	CallBackFn      CallBackFn         // 回调函数，用于处理数据导出后的后续操作
 }
 
-func NewExportExcel(filename string, titles FieldMetas) *ExportExcel {
+func NewExportExcel(filename string, titles defined.FieldMetas) *ExportExcel {
 	return &ExportExcel{filename: filename, Titles: titles}
 }
 

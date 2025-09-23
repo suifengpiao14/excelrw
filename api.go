@@ -10,6 +10,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 	"github.com/suifengpiao14/apihttpprotocol"
+	"github.com/suifengpiao14/excelrw/defined"
+	"github.com/suifengpiao14/excelrw/repository"
+	"github.com/suifengpiao14/sqlbuilder"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
@@ -79,7 +82,7 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 		if len(fieldMetas) == 0 && len(data) > 0 {
 			firstRow := data[0]
 			for key := range firstRow.Map() {
-				fieldMetas = append(fieldMetas, FieldMeta{Name: key, Title: key})
+				fieldMetas = append(fieldMetas, defined.FieldMeta{Name: key, Title: key})
 			}
 			ecw = ecw.WithFieldMetas(fieldMetas)
 		}
@@ -124,10 +127,10 @@ type ProxyResponse struct {
 	MiddlewareFuncs apihttpprotocol.MiddlewareFuncsResponseMessage `json:"-"` // 请求中间件函数列表，一般可以使用动态脚本生成
 }
 type Settings struct {
-	Filename        string        `json:"filename" validate:"required"` //导出文件全称如 /static/export/20231018_1547.xlsx
-	FieldMetas      FieldMetas    `json:"fieldMetas"`                   //字段映射信息{"id":"ID","name":"姓名"}
-	Interval        time.Duration `json:"interval"`
-	DeleteFileDelay time.Duration `json:"deleteFileDelay"`
+	Filename        string             `json:"filename" validate:"required"` //导出文件全称如 /static/export/20231018_1547.xlsx
+	FieldMetas      defined.FieldMetas `json:"fieldMetas"`                   //字段映射信息{"id":"ID","name":"姓名"}
+	Interval        time.Duration      `json:"interval"`
+	DeleteFileDelay time.Duration      `json:"deleteFileDelay"`
 }
 
 type ExportApiIn struct {
@@ -139,3 +142,88 @@ type ExportApiIn struct {
 const (
 	maxLoopTimes = 5000 //最大循环次数，防止死循环
 )
+
+type MakeExportApiInArgs struct {
+	ConfigKey string   `json:"configKey"` //配置键，例如：user_list
+	Request   Request  `json:"request"`   //请求数据参数
+	Response  Response `json:"-"`         //响应数据参数,只用于收集中间件,不对外开放
+}
+
+type Request struct {
+	Body            json.RawMessage                               `json:"body"`    //请求体，例如：{"pageIndex":1}
+	Headers         map[string]string                             `json:"headers"` //请求头，例如：{"Content-Type":"application/json"}
+	MiddlewareFuncs apihttpprotocol.MiddlewareFuncsRequestMessage `json:"-"`       // 请求中间件函数列表，一般可以使用动态脚本生成
+}
+
+type Response struct {
+	MiddlewareFuncs apihttpprotocol.MiddlewareFuncsResponseMessage `json:"-"` // 请求中间件函数列表，一般可以使用动态脚本生成
+}
+
+// MakeExportApiIn 生成导出配置信息
+func MakeExportApiIn(in MakeExportApiInArgs, tableRef *sqlbuilder.TableConfig) (exportApiIn ExportApiIn, err error) {
+	if tableRef == nil {
+		tableRef = &repository.Export_config_table
+	}
+	exportConfigRepository := repository.NewExportConfigRepository(*tableRef)
+	getIn := repository.ExportConfigRepositoryGetIn{
+		ConfigKey: in.ConfigKey,
+	}
+	config, err := exportConfigRepository.GetMust(getIn)
+	if err != nil {
+		return exportApiIn, err
+	}
+	var requestBody any
+	if in.Request.Body != nil {
+		err = json.Unmarshal(in.Request.Body, &requestBody)
+		if err != nil {
+			return exportApiIn, err
+		}
+	}
+
+	filename, err := config.ParseFilename(requestBody)
+	if err != nil {
+		return exportApiIn, err
+	}
+	fieldMetas, err := config.ParseFieldMetas()
+	if err != nil {
+		return exportApiIn, err
+	}
+	tnterval, err := config.ParseInterval()
+	if err != nil {
+		return exportApiIn, err
+	}
+	deleteFileDelay, err := config.ParseDeleteFileDelay()
+	if err != nil {
+		return exportApiIn, err
+	}
+	requestMiddleware, responseMiddleware, err := config.ParseMiddleware()
+	if err != nil {
+		return exportApiIn, err
+	}
+	in.Request.MiddlewareFuncs.Add(requestMiddleware)
+	in.Response.MiddlewareFuncs.Add(responseMiddleware)
+
+	exportApiIn = ExportApiIn{
+		ProxyRquest: ProxyRquest{
+			Url:             config.Url,
+			Method:          config.Method,
+			PageIndexPath:   config.PageIndexPath,
+			Body:            in.Request.Body,
+			Headers:         in.Request.Headers,
+			MiddlewareFuncs: in.Request.MiddlewareFuncs,
+		}, //请求数据参数
+		ProxyResponse: ProxyResponse{
+			DataPath:         config.DataPath,
+			BusinessCodePath: config.BusinessCodePath,
+			BusinessOkCode:   config.BusinessOkCode,
+			MiddlewareFuncs:  in.Response.MiddlewareFuncs,
+		}, //响应数据参数
+		Settings: Settings{
+			Filename:        filename,
+			FieldMetas:      fieldMetas,
+			Interval:        tnterval,
+			DeleteFileDelay: deleteFileDelay,
+		}, //配置信息
+	}
+	return exportApiIn, nil
+}
