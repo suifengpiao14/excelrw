@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/hoisie/mustache"
+	"github.com/spf13/cast"
 )
 
 type FieldMeta struct {
@@ -37,6 +38,9 @@ func (fm FieldMeta) GetValue(rowNumber int, row map[string]string) string {
 		return value
 	}
 	m := map[string]any{"__rowNumber": rowNumber}
+	if value, ok := m[fm.ValueTpl]; ok {
+		return cast.ToString(value)
+	}
 	value := fm.parseTpl().Render(row, m)
 	return value
 }
