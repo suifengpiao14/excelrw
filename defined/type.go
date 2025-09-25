@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/hoisie/mustache"
+	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 )
 
@@ -17,9 +18,15 @@ type FieldMeta struct {
 	err      error
 }
 
+var ErrorFieldMeta = errors.Errorf("FieldMeta.Name is empty")
+
 func (fm *FieldMeta) parseTpl() *mustache.Template {
 	if fm.template != nil {
 		return fm.template
+	}
+	if fm.Name == "" {
+		fm.err = ErrorFieldMeta
+		return nil
 	}
 	tpl := fm.Name
 	if !strings.Contains(fm.Name, "{{") {
