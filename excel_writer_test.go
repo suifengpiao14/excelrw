@@ -18,12 +18,12 @@ func TestWriteWithChan(t *testing.T) {
 	require.NoError(t, err)
 	filename := "./example/example.xlsx"
 	fieldMetas := defined.FieldMetas{
-		{ValueTpl: "__rowNumber", Title: "序号"},
-		{ValueTpl: "Fsort", Title: "排序"},
-		{ValueTpl: "Ftype", Title: "类型"},
-		{ValueTpl: "Funique_code", Title: "唯一值"},
-		{ValueTpl: "{{Fposition_name}}({{Fposition_code}})", Title: "位置名称(位置)"},
-		{ValueTpl: "{{Fclass_name}}({{Fclass_key}})", Title: "分类名称(分类key)"},
+		{Name: "__rowNumber", Title: "序号"},
+		{Name: "Fsort", Title: "排序"},
+		{Name: "Ftype", Title: "类型"},
+		{Name: "Funique_code", Title: "唯一值"},
+		{Name: "{{Fposition_name}}({{Fposition_code}})", Title: "位置名称(位置)"},
+		{Name: "{{Fclass_name}}({{Fclass_key}})", Title: "分类名称(分类key)"},
 	}
 	ctx := context.Background()
 	ecw := excelrw.NewExcelStreamWriter(ctx, filename, fieldMetas)

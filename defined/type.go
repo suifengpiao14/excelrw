@@ -10,8 +10,8 @@ import (
 )
 
 type FieldMeta struct {
-	Title    string `json:"title"`    // 列标题
-	ValueTpl string `json:"valueTpl"` // 列值模板，例如：{{nameField}}({{idField}}),如果只有一个字段，则可以省略{{}}
+	Title    string `json:"title"` // 列标题
+	Name     string `json:"name"`  // 列值模板，例如：{{nameField}}({{idField}}),如果只有一个字段，则可以省略{{}}
 	maxSize  int    // 当前列字符串最多的个数(用来调整列宽)
 	template *mustache.Template
 	err      error
@@ -21,9 +21,9 @@ func (fm *FieldMeta) parseTpl() *mustache.Template {
 	if fm.template != nil {
 		return fm.template
 	}
-	tpl := fm.ValueTpl
-	if !strings.Contains(fm.ValueTpl, "{{") {
-		tpl = fmt.Sprintf(`{{%s}}`, fm.ValueTpl)
+	tpl := fm.Name
+	if !strings.Contains(fm.Name, "{{") {
+		tpl = fmt.Sprintf(`{{%s}}`, fm.Name)
 	}
 
 	fm.template, fm.err = mustache.ParseString(tpl)
@@ -34,11 +34,11 @@ func (fm FieldMeta) GetValue(rowNumber int, row map[string]string) string {
 	if fm.err != nil {
 		return fm.err.Error()
 	}
-	if value, ok := row[fm.ValueTpl]; ok {
+	if value, ok := row[fm.Name]; ok {
 		return value
 	}
 	m := map[string]any{"__rowNumber": rowNumber}
-	if value, ok := m[fm.ValueTpl]; ok {
+	if value, ok := m[fm.Name]; ok {
 		return cast.ToString(value)
 	}
 	value := fm.parseTpl().Render(row, m)
@@ -63,7 +63,7 @@ type FieldMetas []FieldMeta
 func (fs FieldMetas) MakeTitleRow() map[string]string {
 	m := make(map[string]string)
 	for _, fieldMeta := range fs {
-		m[fieldMeta.ValueTpl] = fieldMeta.Title
+		m[fieldMeta.Name] = fieldMeta.Title
 	}
 	return m
 

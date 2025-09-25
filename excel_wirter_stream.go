@@ -210,7 +210,7 @@ func (ecw *ExcelStreamWriter) AutoAdjustColumnWidth() (err error) {
 // CalFieldMetaMaxSize 计算字段最大长度，用于自动调整列宽
 func (ecw *ExcelStreamWriter) CalFieldMetaMaxSize(rows []map[string]string) {
 	for i := 0; i < len(ecw.fieldMetas); i++ {
-		key := ecw.fieldMetas[i].ValueTpl
+		key := ecw.fieldMetas[i].Name
 		for _, record := range rows {
 			content := record[key]
 			lineIndex := strings.Index(content, "\n")
