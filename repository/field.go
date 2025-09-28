@@ -30,6 +30,9 @@ type Settings struct {
 }
 */
 
+func NewId(id int) (field *sqlbuilder.Field) {
+	return commonlanguage.NewId(id)
+}
 func NewConfigKey(configKey string) (field *sqlbuilder.Field) {
 	return commonlanguage.NewStringId(configKey).SetName("configKey").SetTitle("配置键")
 }
@@ -80,4 +83,15 @@ func NewDeleteFileDelay(deleteFileDelay string) (field *sqlbuilder.Field) {
 }
 func NewDynamicScript(dynamicScript string) (field *sqlbuilder.Field) {
 	return sqlbuilder.NewStringField(dynamicScript, "dynamicScript", "动态脚本", int(sqlbuilder.Str_Text))
+}
+
+func NewCreatedAt(createdAt string) (field *sqlbuilder.Field) {
+	return commonlanguage.NewCreatedAt(createdAt)
+}
+func NewUpdatedAt(updatedAt string) (field *sqlbuilder.Field) {
+	return commonlanguage.NewUpdatedAt(updatedAt)
+}
+
+func NewDeletedAt() (field *sqlbuilder.Field) {
+	return commonlanguage.NewDeletedAt()
 }

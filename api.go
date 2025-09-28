@@ -50,6 +50,10 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 		if proxyReq.PageIndexPath != "" { //带每页大小占位符，则只获取一次数据
 			if startIndex == -1 {
 				result := gjson.GetBytes(body, proxyReq.PageIndexPath)
+				if !result.Exists() {
+					err = errors.Errorf("pageIndexPath:%s not found in body", proxyReq.PageIndexPath)
+					return nil, forceBreak, err
+				}
 				startIndex = int(result.Int())
 				startIndexRaw = result.Raw
 			}
@@ -160,6 +164,8 @@ type Response struct {
 }
 
 var Export_config_table sqlbuilder.TableConfig = repository.Export_config_table
+var IdTimeColumns = repository.IdTimeColumns
+var IdIndex = repository.IdIndex
 
 // MakeExportApiIn 生成导出配置信息
 func MakeExportApiIn(in MakeExportApiInArgs, table sqlbuilder.TableConfig) (exportApiIn ExportApiIn, err error) {
@@ -199,8 +205,12 @@ func MakeExportApiIn(in MakeExportApiInArgs, table sqlbuilder.TableConfig) (expo
 	if err != nil {
 		return exportApiIn, err
 	}
-	in.Request.MiddlewareFuncs.Add(requestMiddleware)
-	in.Response.MiddlewareFuncs.Add(responseMiddleware)
+	if requestMiddleware != nil {
+		in.Request.MiddlewareFuncs.Add(requestMiddleware)
+	}
+	if responseMiddleware != nil {
+		in.Response.MiddlewareFuncs.Add(responseMiddleware)
+	}
 
 	exportApiIn = ExportApiIn{
 		ProxyRquest: ProxyRquest{
