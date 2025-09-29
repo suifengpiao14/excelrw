@@ -17,6 +17,12 @@ import (
 	"github.com/tidwall/sjson"
 )
 
+var (
+	Export_min_page_size int64 = 100 //最小页大小,页码太小循环次数太多，性能不好(该值也不宜设置过大，部分系统列表返回有上限，遇到这种情况，可以将该值赋值为最大上限即可，设置为0，则无最小值限制)
+
+	Export_max_page_size int64 = 10000 //最大页大小,太大内存占用太多，影响稳定性，这个值一般不用修改
+)
+
 // 导出到Excel文件Api ，可直接对接http请求
 func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 	err = validator.New().Struct(in)
@@ -56,6 +62,23 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 				}
 				startIndex = int(result.Int())
 				startIndexRaw = result.Raw
+
+				if proxyReq.PageSizePath != "" {
+					result := gjson.GetBytes(body, proxyReq.PageSizePath)
+					if result.Exists() {
+						pageSize := result.Int()
+						pageSize = max(pageSize, Export_min_page_size)
+						pageSize = min(pageSize, Export_max_page_size)
+						if pageSize != result.Int() {
+							raw := exp.ReplaceAllString(result.Raw, cast.ToString(pageSize)) // 确保类型一致
+							body, err = sjson.SetRawBytes(body, proxyReq.PageSizePath, []byte(raw))
+							if err != nil {
+								return nil, forceBreak, err
+							}
+						}
+					}
+				}
+
 			}
 			pageIndex := startIndex + pageIndexDelta
 			raw := exp.ReplaceAllString(startIndexRaw, cast.ToString(pageIndex)) // 确保类型一致
@@ -121,6 +144,7 @@ type ProxyRquest struct {
 	Headers         map[string]string                             `json:"headers"`
 	Body            json.RawMessage                               `json:"body" validate:"required"`
 	PageIndexPath   string                                        `json:"pageIndexPath"` //页码参数路径，例如：$.data.pageIndex
+	PageSizePath    string                                        `json:"pageSizePath"`  //每页数量参数路径，例如：$.data.pageSize
 	MiddlewareFuncs apihttpprotocol.MiddlewareFuncsRequestMessage `json:"-"`             // 请求中间件函数列表，一般可以使用动态脚本生成
 }
 type ProxyResponse struct {
@@ -217,6 +241,7 @@ func MakeExportApiIn(in MakeExportApiInArgs, table sqlbuilder.TableConfig) (expo
 			Url:             config.Url,
 			Method:          config.Method,
 			PageIndexPath:   config.PageIndexPath,
+			PageSizePath:    config.PageSizePath,
 			Body:            in.Request.Body,
 			Headers:         in.Request.Headers,
 			MiddlewareFuncs: in.Request.MiddlewareFuncs,

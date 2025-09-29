@@ -33,6 +33,7 @@ var Export_config_table = sqlbuilder.NewTableConfig("t_export_config").AddColumn
 	sqlbuilder.NewColumn("Furl", sqlbuilder.GetField(NewUrl)),
 	sqlbuilder.NewColumn("Fmethod", sqlbuilder.GetField(NewMethod)),
 	sqlbuilder.NewColumn("Fpage_index_path", sqlbuilder.GetField(NewPageIndexPath)),
+	sqlbuilder.NewColumn("Fpage_size_path", sqlbuilder.GetField(NewPageSizePath)),
 	sqlbuilder.NewColumn("Fdata_path", sqlbuilder.GetField(NewDataPath)),
 	sqlbuilder.NewColumn("Fdynamic_script", sqlbuilder.GetField(NewDynamicScript)),
 	sqlbuilder.NewColumn("Fbusiness_code_path", sqlbuilder.GetField(NewBusinessCodePath)),
@@ -77,6 +78,7 @@ type ExportConfigModel struct {
 	Url              string `gorm:"column:url" xorm:"'url'" db:"url" json:"url"`                                                     // 请求地址
 	Method           string `gorm:"column:method" xorm:"'method'" db:"method" json:"method"`                                         // 请求方法，例如：GET,POST
 	PageIndexPath    string `gorm:"column:pageIndexPath" xorm:"'pageIndexPath'" db:"pageIndexPath" json:"pageIndexPath"`             // 页码参数路径，例如：$.data.pageIndex
+	PageSizePath     string `gorm:"column:pageSizePath" xorm:"'pageSizePath'" db:"pageSizePath" json:"pageSizePath"`                 // 每页数量参数路径，例如：$.data.pageSize
 	DataPath         string `gorm:"column:dataPath" xorm:"'dataPath'" db:"dataPath" json:"dataPath"`                                 // 数据路径，例如：$.data.list
 	BusinessCodePath string `gorm:"column:businessCodePath" xorm:"'businessCodePath'" db:"businessCodePath" json:"businessCodePath"` // 业务成功标识路径，例如：$.code
 	BusinessOkCode   string `gorm:"column:businessOkCode" xorm:"'businessOkCode'" db:"businessOkCode" json:"businessOkCode"`         // 业务成功标识值

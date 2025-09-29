@@ -7,29 +7,6 @@ import (
 	"github.com/suifengpiao14/sqlbuilder"
 )
 
-/*
-Url             string                                        `json:"url"  validate:"required"`
-	Method          string                                        `json:"method" validate:"required"`
-	Headers         map[string]string                             `json:"headers"`
-	Body            json.RawMessage                               `json:"body" validate:"required"`
-	PageIndexPath   string                                        `json:"pageIndexPath"` //页码参数路径，例如：$.data.pageIndex
-	MiddlewareFuncs apihttpprotocol.MiddlewareFuncsRequestMessage `json:"-"`             // 请求中间件函数列表，一般可以使用动态脚本生成
-
-	type ProxyResponse struct {
-	DataPath         string `json:"dataPath"  validate:"required"`
-	BusinessCodePath string `json:"businessCodePath"` //业务成功标识路径，例如：$.code
-	BusinessOkCode   string `json:"businessOkCode"`   //业务成功标识值，例如：0
-	//	BusinessOkJson   json.RawMessage                                `json:"businessOkJson"`   //业务成功标识json字符串，例如：{"code":0}
-	MiddlewareFuncs apihttpprotocol.MiddlewareFuncsResponseMessage `json:"-"` // 请求中间件函数列表，一般可以使用动态脚本生成
-}
-type Settings struct {
-	Filename        string        `json:"filename" validate:"required"` //导出文件全称如 /static/export/20231018_1547.xlsx
-	FieldMetas      FieldMetas    `json:"fieldMetas"`                   //字段映射信息{"id":"ID","name":"姓名"}
-	Interval        time.Duration `json:"interval"`
-	DeleteFileDelay time.Duration `json:"deleteFileDelay"`
-}
-*/
-
 func NewId(id int) (field *sqlbuilder.Field) {
 	return commonlanguage.NewId(id)
 }
@@ -54,13 +31,16 @@ func NewMethod(method string) (field *sqlbuilder.Field) {
 }
 
 func NewPageIndexPath(pageIndexPath string) (field *sqlbuilder.Field) {
-	return sqlbuilder.NewStringField(pageIndexPath, "pageIndexPath", "页码参数路径，例如：$.data.pageIndex", 0)
+	return sqlbuilder.NewStringField(pageIndexPath, "pageIndexPath", "页码参数路径，例如：data.pageIndex", 0)
+}
+func NewPageSizePath(pageSizePath string) (field *sqlbuilder.Field) {
+	return sqlbuilder.NewStringField(pageSizePath, "pageSizePath", "每页数量参数路径(防止前端出入值过小导致循环次数太多)，例如：data.pageSize", 0)
 }
 func NewDataPath(dataPath string) (field *sqlbuilder.Field) {
-	return sqlbuilder.NewStringField(dataPath, "dataPath", "数据路径，例如：$.data.list", 0)
+	return sqlbuilder.NewStringField(dataPath, "dataPath", "数据路径，例如：data.list", 0)
 }
 func NewBusinessCodePath(businessCodePath string) (field *sqlbuilder.Field) {
-	return sqlbuilder.NewStringField(businessCodePath, "businessCodePath", "业务成功标识路径，例如：$.code", 0)
+	return sqlbuilder.NewStringField(businessCodePath, "businessCodePath", "业务成功标识路径，例如：code", 0)
 }
 func NewBusinessOkCode(businessOkCode string) (field *sqlbuilder.Field) {
 	return sqlbuilder.NewStringField(businessOkCode, "businessOkCode", "业务成功标识值，例如：0", 0)
