@@ -57,6 +57,8 @@ github.com/golang-sql/sqlexp v0.1.0/go.mod h1:J4ad9Vo8ZCWQ2GMrC4UCQy1JpCbwU9m3EO
 github.com/google/go-cmp v0.5.9 h1:O2Tfq5qg4qc4AmwVlvv0oLiVAGB7enBSJ2x2DqQFi38=
 github.com/google/go-cmp v0.5.9/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
 github.com/google/gofuzz v1.0.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
+github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
+github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/gopherjs/gopherjs v1.17.2 h1:fQnZVsXk8uxXIStYb0N4bGk7jeyTalG/wsZjQ25dO0g=
 github.com/gopherjs/gopherjs v1.17.2/go.mod h1:pRRIvn/QzFLrKfvEz3qUuEhtE/zLCWfreZ6J5gM2i+k=
 github.com/hoisie/mustache v0.0.0-20160804235033-6375acf62c69 h1:umaj0TCQ9lWUUKy2DxAhEzPbwd0jnxiw1EI2z3FiILM=
@@ -141,8 +143,8 @@ github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXl
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
 github.com/stretchr/testify v1.10.0 h1:Xv5erBjTwe/5IxqUQTdXv5kgmIvbHo3QQyRwhJsOfJA=
 github.com/stretchr/testify v1.10.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
-github.com/suifengpiao14/apihttpprotocol v0.0.8 h1:iDyQv+akHntSxy7HYQZ87ilvzsDZ/zbwkZMxYLUA8vQ=
-github.com/suifengpiao14/apihttpprotocol v0.0.8/go.mod h1:3DEUL54elDbS3RDICqwC2hhh+nGFWZIH3sXDkeaEfHs=
+github.com/suifengpiao14/apihttpprotocol v0.0.13 h1:E/YkA6xffPad9dmaxKkMMccjDcvacl8p8VviL1V3KjM=
+github.com/suifengpiao14/apihttpprotocol v0.0.13/go.mod h1:wUHWqJccnIFSYquai7P3eBgfKKUdrxW3/zhdDOrKY7k=
 github.com/suifengpiao14/cache v0.0.10 h1:ozDpnJXyA7i8MjQhzpE+wR9u1Ez5hH1ECZ0eLvYs/f0=
 github.com/suifengpiao14/cache v0.0.10/go.mod h1:v6E8vnKaP9f423WMj+ouH/SLzlseTQvjyAEDj0EXI3Y=
 github.com/suifengpiao14/commonlanguage v0.0.21 h1:me4tebAPpv4iHfwZNivgZ1jCljlGCfHk0H++fL1i9/Q=

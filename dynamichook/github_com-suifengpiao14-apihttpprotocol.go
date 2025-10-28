@@ -12,7 +12,7 @@ import (
 func init() {
 	Symbols["github.com/suifengpiao14/apihttpprotocol/apihttpprotocol"] = map[string]reflect.Value{
 		// function, constant and variable definitions
-		"BusinessCode":                       reflect.ValueOf(&apihttpprotocol.BusinessCode).Elem(),
+		"BusinessMessage_Success":            reflect.ValueOf(&apihttpprotocol.BusinessMessage_Success).Elem(),
 		"Business_Code_Fail":                 reflect.ValueOf(&apihttpprotocol.Business_Code_Fail).Elem(),
 		"Business_Code_Success":              reflect.ValueOf(&apihttpprotocol.Business_Code_Success).Elem(),
 		"ContentTypeJson":                    reflect.ValueOf(constant.MakeFromLiteral("\"application/json\"", token.STRING, 0)),
@@ -27,6 +27,7 @@ func init() {
 		"NewServerProtocol":                  reflect.ValueOf(apihttpprotocol.NewServerProtocol),
 		"RequestMiddleLog":                   reflect.ValueOf(apihttpprotocol.RequestMiddleLog),
 		"RequestMiddleSetLog":                reflect.ValueOf(apihttpprotocol.RequestMiddleSetLog),
+		"ResponseBodyLogMaxLen":              reflect.ValueOf(&apihttpprotocol.ResponseBodyLogMaxLen).Elem(),
 		"ResponseMiddleCodeMessageForClient": reflect.ValueOf(apihttpprotocol.ResponseMiddleCodeMessageForClient),
 		"ResponseMiddleCodeMessageForServer": reflect.ValueOf(apihttpprotocol.ResponseMiddleCodeMessageForServer),
 		"ResponseMiddleLog":                  reflect.ValueOf(apihttpprotocol.ResponseMiddleLog),
@@ -35,18 +36,34 @@ func init() {
 		// type definitions
 		"ClientProtocol":               reflect.ValueOf((*apihttpprotocol.ClientProtocol)(nil)),
 		"ContextReqeustMessageKeyType": reflect.ValueOf((*apihttpprotocol.ContextReqeustMessageKeyType)(nil)),
+		"ErrorWithCode":                reflect.ValueOf((*apihttpprotocol.ErrorWithCode)(nil)),
 		"HttpError":                    reflect.ValueOf((*apihttpprotocol.HttpError)(nil)),
 		"LogI":                         reflect.ValueOf((*apihttpprotocol.LogI)(nil)),
 		"LogIgnore":                    reflect.ValueOf((*apihttpprotocol.LogIgnore)(nil)),
-		"Metadata":                     reflect.ValueOf((*apihttpprotocol.Metadata)(nil)),
+		"MetaData":                     reflect.ValueOf((*apihttpprotocol.MetaData)(nil)),
 		"RequestMessage":               reflect.ValueOf((*apihttpprotocol.RequestMessage)(nil)),
 		"Response":                     reflect.ValueOf((*apihttpprotocol.Response)(nil)),
 		"ResponseMessage":              reflect.ValueOf((*apihttpprotocol.ResponseMessage)(nil)),
 		"ServerProtocol":               reflect.ValueOf((*apihttpprotocol.ServerProtocol)(nil)),
 
 		// interface wrapper definitions
-		"_LogI": reflect.ValueOf((*_github_com_suifengpiao14_apihttpprotocol_LogI)(nil)),
+		"_ErrorWithCode": reflect.ValueOf((*_github_com_suifengpiao14_apihttpprotocol_ErrorWithCode)(nil)),
+		"_LogI":          reflect.ValueOf((*_github_com_suifengpiao14_apihttpprotocol_LogI)(nil)),
 	}
+}
+
+// _github_com_suifengpiao14_apihttpprotocol_ErrorWithCode is an interface wrapper for ErrorWithCode type
+type _github_com_suifengpiao14_apihttpprotocol_ErrorWithCode struct {
+	IValue   interface{}
+	WError   func() string
+	WGetCode func() string
+}
+
+func (W _github_com_suifengpiao14_apihttpprotocol_ErrorWithCode) Error() string {
+	return W.WError()
+}
+func (W _github_com_suifengpiao14_apihttpprotocol_ErrorWithCode) GetCode() string {
+	return W.WGetCode()
 }
 
 // _github_com_suifengpiao14_apihttpprotocol_LogI is an interface wrapper for LogI type

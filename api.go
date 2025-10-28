@@ -89,8 +89,8 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 		}
 
 		client := apihttpprotocol.NewClientProtocol(proxyReq.Method, proxyReq.Url)
-		client.Request().MiddlewareFuncs.Add(proxyReq.MiddlewareFuncs...)
-		client.Response().MiddlewareFuncs.Add(proxyRsp.MiddlewareFuncs...)
+		client.Request().AddMiddleware(proxyReq.MiddlewareFuncs...)
+		client.Response().AddMiddleware(proxyRsp.MiddlewareFuncs...)
 		client.Request().SetHeader("Content-Type", "application/json")
 		var resp json.RawMessage
 		err = client.Do(body, &resp)
