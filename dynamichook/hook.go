@@ -12,28 +12,40 @@ var Symbols = yaegijson.Symbols
 //go:generate yaegi extract github.com/suifengpiao14/apihttpprotocol
 
 type DynamicHook struct {
-	ReqeustMiddlewareName   string               `json:"beforeRequestFuncName"`
-	ResponseMiddlewareName  string               `json:"afterRequestFuncName"`
-	DynamicExtensionHttpRaw *yaegijson.Extension `json:"-"`
+	ReqeustMiddlewareName  string               `json:"beforeRequestFuncName"`
+	ResponseMiddlewareName string               `json:"afterRequestFuncName"`
+	DynamicExtension       *yaegijson.Extension `json:"-"`
 }
 
-func (p DynamicHook) MakeMiddleware() (reqeustMiddleware apihttpprotocol.HandlerFuncRequestMessage, responseMiddleware apihttpprotocol.HandlerFuncResponseMessage, err error) {
+type DynamicMiddleware struct {
+	RequestMiddleware  apihttpprotocol.HandlerFuncRequestMessage
+	ResponseMiddleware apihttpprotocol.HandlerFuncResponseMessage
+}
+
+func (p DynamicHook) MakeMiddleware() (out DynamicMiddleware, err error) {
 	// 动态编译扩展代码
-	extension := p.DynamicExtensionHttpRaw
+	extension := p.DynamicExtension
 	if extension == nil {
 		err = errors.Errorf("DynamicExtensionHttpRaw is nil")
-		return nil, nil, err
+		return out, err
 
 	}
-	err = extension.GetDestFuncImpl(p.ReqeustMiddlewareName, &reqeustMiddleware)
-	if err != nil {
-		return nil, nil, err
+	err = extension.GetDestFuncImpl(p.ReqeustMiddlewareName, &out.RequestMiddleware)
+	if err != nil && errors.Is(err, yaegijson.Error_not_found_func) {
+		err = nil
 	}
-	err = extension.GetDestFuncImpl(p.ResponseMiddlewareName, &responseMiddleware)
 	if err != nil {
-		return nil, nil, err
+		return out, err
 	}
-	return reqeustMiddleware, responseMiddleware, nil
+	err = extension.GetDestFuncImpl(p.ResponseMiddlewareName, &out.ResponseMiddleware)
+	if err != nil && errors.Is(err, yaegijson.Error_not_found_func) {
+		err = nil
+	}
+	if err != nil {
+		return out, err
+	}
+
+	return out, nil
 }
 
 func NewExtension() *yaegijson.Extension {

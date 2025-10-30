@@ -5,11 +5,10 @@ import (
 
 	"github.com/hoisie/mustache"
 	"github.com/pkg/errors"
-	"github.com/suifengpiao14/apihttpprotocol"
 	"github.com/suifengpiao14/excelrw/defined"
 	"github.com/suifengpiao14/excelrw/dynamichook"
+	"github.com/suifengpiao14/httpraw"
 	"github.com/suifengpiao14/sqlbuilder"
-	"github.com/suifengpiao14/yaegijson"
 )
 
 var IdTimeColumns = sqlbuilder.ColumnConfigs{
@@ -20,20 +19,21 @@ var IdTimeColumns = sqlbuilder.ColumnConfigs{
 
 var IdIndex = sqlbuilder.Index{
 	IsPrimary: true,
-	ColumnNames: func(tableColumns sqlbuilder.ColumnConfigs) (columnNames []string) {
-		columnNames = tableColumns.FieldName2ColumnName(
-			sqlbuilder.GetFieldName(NewId),
-		)
+	ColumnNames: func(table sqlbuilder.TableConfig) (columnNames []string) {
+		columnNames = []string{
+			table.GetDBNameByFieldNameMust(sqlbuilder.GetFieldName(NewId)),
+		}
 		return columnNames
 	},
 }
 
 var Export_config_table = sqlbuilder.NewTableConfig("t_export_config").AddColumns(
 	sqlbuilder.NewColumn("Fconfig_key", sqlbuilder.GetField(NewConfigKey)),
-	sqlbuilder.NewColumn("Furl", sqlbuilder.GetField(NewUrl)),
-	sqlbuilder.NewColumn("Fmethod", sqlbuilder.GetField(NewMethod)),
+	sqlbuilder.NewColumn("Fproxy_request_tpl", sqlbuilder.GetField(NewProxyRequestTpl)),
 	sqlbuilder.NewColumn("Fpage_index_path", sqlbuilder.GetField(NewPageIndexPath)),
+	sqlbuilder.NewColumn("Fpage_index_start", sqlbuilder.GetField(NewPageIndexStart)),
 	sqlbuilder.NewColumn("Fpage_size_path", sqlbuilder.GetField(NewPageSizePath)),
+	sqlbuilder.NewColumn("Fpage_size", sqlbuilder.GetField(NewPageSize)),
 	sqlbuilder.NewColumn("Fdata_path", sqlbuilder.GetField(NewDataPath)),
 	sqlbuilder.NewColumn("Fdynamic_script", sqlbuilder.GetField(NewDynamicScript)),
 	sqlbuilder.NewColumn("Fbusiness_code_path", sqlbuilder.GetField(NewBusinessCodePath)),
@@ -45,10 +45,10 @@ var Export_config_table = sqlbuilder.NewTableConfig("t_export_config").AddColumn
 ).AddIndexs(
 	sqlbuilder.Index{
 		Unique: true,
-		ColumnNames: func(tableColumns sqlbuilder.ColumnConfigs) (columnNames []string) {
-			columnNames = tableColumns.FieldName2ColumnName(
-				sqlbuilder.GetFieldName(NewConfigKey),
-			)
+		ColumnNames: func(table sqlbuilder.TableConfig) (columnNames []string) {
+			columnNames = []string{
+				table.GetDBNameByFieldNameMust(sqlbuilder.GetFieldName(NewConfigKey)),
+			}
 			return columnNames
 		},
 	},
@@ -74,19 +74,21 @@ func NewExportConfigRepository(tableConfig sqlbuilder.TableConfig) ExportConfigR
 
 // ExportConfigModel 导出配置模型结构体，用于解析配置信息,这里gorm:"column:xxx"是固定不变的(查询语句会使用别名转换字段),后续使用 sql.DB，xorm 也可以增加对应的固定tag
 type ExportConfigModel struct {
-	ConfigKey        string `gorm:"column:configKey" xorm:"'configKey'" db:"configKey" json:"configKey"`                             // 配置键
-	Url              string `gorm:"column:url" xorm:"'url'" db:"url" json:"url"`                                                     // 请求地址
-	Method           string `gorm:"column:method" xorm:"'method'" db:"method" json:"method"`                                         // 请求方法，例如：GET,POST
-	PageIndexPath    string `gorm:"column:pageIndexPath" xorm:"'pageIndexPath'" db:"pageIndexPath" json:"pageIndexPath"`             // 页码参数路径，例如：$.data.pageIndex
-	PageSizePath     string `gorm:"column:pageSizePath" xorm:"'pageSizePath'" db:"pageSizePath" json:"pageSizePath"`                 // 每页数量参数路径，例如：$.data.pageSize
-	DataPath         string `gorm:"column:dataPath" xorm:"'dataPath'" db:"dataPath" json:"dataPath"`                                 // 数据路径，例如：$.data.list
-	BusinessCodePath string `gorm:"column:businessCodePath" xorm:"'businessCodePath'" db:"businessCodePath" json:"businessCodePath"` // 业务成功标识路径，例如：$.code
-	BusinessOkCode   string `gorm:"column:businessOkCode" xorm:"'businessOkCode'" db:"businessOkCode" json:"businessOkCode"`         // 业务成功标识值
-	FilenameTpl      string `gorm:"column:filenameTpl" xorm:"'filenameTpl'" db:"filenameTpl" json:"filenameTpl"`                     // 导出文件全称如 /static/export/{{fielname}}.xlsx
-	FieldMetas       string `gorm:"column:fieldMetas" xorm:"'fieldMetas'" db:"fieldMetas" json:"fieldMetas"`                         // 字段映射信息，例如：[{"name":"id","title":"title"}]
-	Interval         string `gorm:"column:interval" xorm:"'interval'" db:"interval" json:"interval"`                                 // 间隔时间，例如：10s
-	DeleteFileDelay  string `gorm:"column:deleteFileDelay" xorm:"'deleteFileDelay'" db:"deleteFileDelay" json:"deleteFileDelay"`     // 删除文件延迟时间，例如：10s
-	DynamicScript    string `gorm:"column:dynamicScript" xorm:"'dynamicScript'" db:"dynamicScript" json:"dynamicScript"`             // 动态脚本
+	ConfigKey         string `gorm:"column:configKey" xorm:"'configKey'" db:"configKey" json:"configKey"`                                 // 配置键
+	ProxyRequestTpl   string `gorm:"column:proxyRequestTpl" xorm:"'proxyRequestTpl'" db:"proxyRequestTpl" json:"proxyRequestTpl"`         // 代理获取数据请求模板，例如：{{.Url}}?pageIndex={{.PageIndex}}
+	ReqeustPagination string `gorm:"column:reqeustPagination" xorm:"'reqeustPagination'" db:"reqeustPagination" json:"reqeustPagination"` // 请求分页参数，例如：pageIndex,pageSize
+	PageIndexPath     string `gorm:"column:pageIndexPath" xorm:"'pageIndexPath'" db:"pageIndexPath" json:"pageIndexPath"`                 // 页码参数路径，例如：$.data.pageIndex
+	PageIndexStart    string `gorm:"column:pageIndexStart" xorm:"'pageIndexStart'" db:"pageIndexStart" json:"pageIndexStart"`             // 页码起始值，例如：1
+	PageSizePath      string `gorm:"column:pageSizePath" xorm:"'pageSizePath'" db:"pageSizePath" json:"pageSizePath"`                     // 每页数量参数路径，例如：$.data.pageSize
+	PageSize          int    `gorm:"column:pageSize" xorm:"'pageSize'" db:"pageSize" json:"pageSize"`                                     // 每页数量，例如：10
+	DataPath          string `gorm:"column:dataPath" xorm:"'dataPath'" db:"dataPath" json:"dataPath"`                                     // 数据路径，例如：$.data.list
+	BusinessCodePath  string `gorm:"column:businessCodePath" xorm:"'businessCodePath'" db:"businessCodePath" json:"businessCodePath"`     // 业务成功标识路径，例如：$.code
+	BusinessOkCode    string `gorm:"column:businessOkCode" xorm:"'businessOkCode'" db:"businessOkCode" json:"businessOkCode"`             // 业务成功标识值
+	FilenameTpl       string `gorm:"column:filenameTpl" xorm:"'filenameTpl'" db:"filenameTpl" json:"filenameTpl"`                         // 导出文件全称如 /static/export/{{fielname}}.xlsx
+	FieldMetas        string `gorm:"column:fieldMetas" xorm:"'fieldMetas'" db:"fieldMetas" json:"fieldMetas"`                             // 字段映射信息，例如：[{"name":"id","title":"title"}]
+	Interval          string `gorm:"column:interval" xorm:"'interval'" db:"interval" json:"interval"`                                     // 间隔时间，例如：10s
+	DeleteFileDelay   string `gorm:"column:deleteFileDelay" xorm:"'deleteFileDelay'" db:"deleteFileDelay" json:"deleteFileDelay"`         // 删除文件延迟时间，例如：10s
+	DynamicScript     string `gorm:"column:dynamicScript" xorm:"'dynamicScript'" db:"dynamicScript" json:"dynamicScript"`                 // 动态脚本
 }
 
 func (m ExportConfigModel) ParseFieldMetas() (fieldMetas defined.FieldMetas, err error) {
@@ -152,23 +154,63 @@ func (m ExportConfigModel) ParseFilename(context ...any) (filename string, err e
 	return filename, nil
 }
 
-func (m ExportConfigModel) ParseMiddleware() (requestMiddleware apihttpprotocol.HandlerFunc[apihttpprotocol.RequestMessage], responseMiddleware apihttpprotocol.HandlerFunc[apihttpprotocol.ResponseMessage], err error) {
-	if m.DynamicScript == "" {
-		return nil, nil, nil
-	}
-	dynamicHook := dynamichook.DynamicHook{
-		ReqeustMiddlewareName:  "excelrwhook.RequestMiddleware",
-		ResponseMiddlewareName: "excelrwhook.ResponseMiddleware",
-		DynamicExtensionHttpRaw: &yaegijson.Extension{
-			SourceCodes: []string{m.DynamicScript},
-		},
-	}
+// func (m ExportConfigModel) ParseDynamicMiddleware() (out dynamichook.DynamicMiddleware, err error) {
+// 	if m.DynamicScript == "" {
+// 		return out, nil
+// 	}
+// 	dynamicHook := dynamichook.DynamicHook{
+// 		ReqeustMiddlewareName:  "excelrwhook.RequestMiddleware",
+// 		ResponseMiddlewareName: "excelrwhook.ResponseMiddleware",
+// 		DynamicExtension: &yaegijson.Extension{
+// 			SourceCodes: []string{m.DynamicScript},
+// 		},
+// 	}
 
-	requestMiddleware, responseMiddleware, err = dynamicHook.MakeMiddleware()
-	if err != nil {
-		return nil, nil, err
+// 	out, err = dynamicHook.MakeMiddleware()
+// 	if err != nil {
+// 		return out, err
+// 	}
+// 	return out, nil
+// }
+
+var RecordFormatFnName = "recordFormatFn"
+
+func (m ExportConfigModel) ParseRecordFormatFn() (recordFormatFn defined.RecordFormatFn, err error) {
+	if m.DynamicScript == "" {
+		return recordFormatFn, nil
 	}
-	return requestMiddleware, responseMiddleware, nil
+	jsvm, err := dynamichook.ParseJSVM(m.DynamicScript)
+	if err != nil {
+		return nil, err
+	}
+	recordFormatFn, err = jsvm.RecordFormatFn(RecordFormatFnName)
+	if err != nil {
+		if errors.Is(err, dynamichook.ErrorJSNotFound) {
+			err = nil
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	if recordFormatFn == nil {
+		recordFormatFn = func(record map[string]string) (map[string]string, error) {
+			return record, nil
+		}
+	}
+	return recordFormatFn, nil
+}
+
+func (m ExportConfigModel) ParseRequest(data any) (rDTO *httpraw.RequestDTO, err error) {
+	if m.ProxyRequestTpl == "" {
+		err = errors.Errorf(`ExportConfigModel.ProxyRequestTpl required ,ConfigKey:%s`, m.ConfigKey)
+		return nil, err
+	}
+	httpTpl := httpraw.HttpTpl(m.ProxyRequestTpl)
+	rDTO, err = httpTpl.RequestTDO(data)
+	if err != nil {
+		return nil, err
+	}
+	return rDTO, nil
 }
 
 type ExportConfigModels []ExportConfigModel

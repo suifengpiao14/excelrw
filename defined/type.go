@@ -82,3 +82,5 @@ func (fs *FieldMetas) Unmarshal(fieldMetasStr string) (err error) {
 	}
 	return json.Unmarshal([]byte(fieldMetasStr), fs)
 }
+
+type RecordFormatFn func(record map[string]string) (newRecord map[string]string, err error)

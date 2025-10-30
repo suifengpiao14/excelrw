@@ -1,8 +1,6 @@
 package repository
 
 import (
-	"net/http"
-
 	"github.com/suifengpiao14/commonlanguage"
 	"github.com/suifengpiao14/sqlbuilder"
 )
@@ -14,27 +12,37 @@ func NewConfigKey(configKey string) (field *sqlbuilder.Field) {
 	return commonlanguage.NewStringId(configKey).SetName("configKey").SetTitle("配置键")
 }
 
-func NewUrl(url string) (field *sqlbuilder.Field) {
-	return sqlbuilder.NewStringField(url, "url", "请求地址", 0)
+//	func NewUrl(url string) (field *sqlbuilder.Field) {
+//		return sqlbuilder.NewStringField(url, "url", "请求地址", 0)
+//	}
+func NewProxyRequestTpl(proxyRequestTpl string) (field *sqlbuilder.Field) {
+	return sqlbuilder.NewStringField(proxyRequestTpl, "proxyRequestTpl", "代理获取数据请求模板", 0)
 }
-func NewMethod(method string) (field *sqlbuilder.Field) {
-	return sqlbuilder.NewStringField(method, "method", "请求方法", 0).AppendEnum(
-		sqlbuilder.Enum{
-			Key:   http.MethodGet,
-			Title: http.MethodGet,
-		},
-		sqlbuilder.Enum{
-			Key:   http.MethodPost,
-			Title: http.MethodPost,
-		},
-	)
-}
+
+// func NewMethod(method string) (field *sqlbuilder.Field) {
+// 	return sqlbuilder.NewStringField(method, "method", "请求方法", 0).AppendEnum(
+// 		sqlbuilder.Enum{
+// 			Key:   http.MethodGet,
+// 			Title: http.MethodGet,
+// 		},
+// 		sqlbuilder.Enum{
+// 			Key:   http.MethodPost,
+// 			Title: http.MethodPost,
+// 		},
+// 	)
+// }
 
 func NewPageIndexPath(pageIndexPath string) (field *sqlbuilder.Field) {
 	return sqlbuilder.NewStringField(pageIndexPath, "pageIndexPath", "页码参数路径，例如：data.pageIndex", 0)
 }
+func NewPageIndexStart(pageIndexStart string) (field *sqlbuilder.Field) {
+	return sqlbuilder.NewStringField(pageIndexStart, "pageIndexStart", "页码开始值", 0)
+}
 func NewPageSizePath(pageSizePath string) (field *sqlbuilder.Field) {
 	return sqlbuilder.NewStringField(pageSizePath, "pageSizePath", "每页数量参数路径(防止前端出入值过小导致循环次数太多)，例如：data.pageSize", 0)
+}
+func NewPageSize(pageSize string) (field *sqlbuilder.Field) {
+	return sqlbuilder.NewStringField(pageSize, "pageSize", "每页数量", 0)
 }
 func NewDataPath(dataPath string) (field *sqlbuilder.Field) {
 	return sqlbuilder.NewStringField(dataPath, "dataPath", "数据路径，例如：data.list", 0)
@@ -64,7 +72,6 @@ func NewDeleteFileDelay(deleteFileDelay string) (field *sqlbuilder.Field) {
 func NewDynamicScript(dynamicScript string) (field *sqlbuilder.Field) {
 	return sqlbuilder.NewStringField(dynamicScript, "dynamicScript", "动态脚本", int(sqlbuilder.Str_Text))
 }
-
 func NewCreatedAt(createdAt string) (field *sqlbuilder.Field) {
 	return commonlanguage.NewCreatedAt(createdAt)
 }

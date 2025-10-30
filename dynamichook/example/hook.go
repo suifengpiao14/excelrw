@@ -30,3 +30,11 @@ func ResponseMiddleware(message *apihttpprotocol.ResponseMessage) (err error) {
 	//todo 此处编写响应中间件逻辑
 	return nil
 }
+
+/*
+map[string]string ["_rowNumber": "1", "engineerEvaluatePrice": "150", "paymentTime": "", "createTime": "2025-10-29 16:54:05", "channelName": "闲鱼上门竞价", "productName": "iPhone 3GS", "cityId": "440300", "cityName": "深圳市", "status": "1", "statusText": "待使用", "adjustPrice": "0", "id": "65", "channelId": "10001485", "orderId": "16027", "userId": "1", "paymentAmount": "0", ]
+*/
+
+func RecordFormat(record map[string]string) (newRecord map[string]string, err error) {
+	return record, nil
+}

@@ -20,7 +20,7 @@ import (
 var (
 	Export_min_page_size int64 = 100 //最小页大小,页码太小循环次数太多，性能不好(该值也不宜设置过大，部分系统列表返回有上限，遇到这种情况，可以将该值赋值为最大上限即可，设置为0，则无最小值限制)
 
-	Export_max_page_size int64 = 10000 //最大页大小,太大内存占用太多，影响稳定性，这个值一般不用修改
+	Export_max_page_size int64 = 100000 //最大页大小,太大内存占用太多，影响稳定性，这个值一般不用修改
 )
 
 // 导出到Excel文件Api ，可直接对接http请求
@@ -47,11 +47,12 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 	startIndex := -1
 	startIndexRaw := ""
 	exp := regexp.MustCompile(`\d+`)
+	_rowNumber := 0
+	body := proxyReq.Body // body 的pageSize 有可能会被修改，所以在这里赋值
 	ecw = ecw.WithInterval(settings.Interval).WithDeleteFile(deleteFileDelay, nil).WithMaxLoopCount(maxLoopTimes).WithFetcher(func(loopCount int) (rows []map[string]string, forceBreak bool, err error) {
 		if proxyReq.PageIndexPath == "" { //不带页码占位符，则只获取一次数据
 			forceBreak = true
 		}
-		body := proxyReq.Body
 		pageIndexDelta := loopCount - 1
 		if proxyReq.PageIndexPath != "" { //带每页大小占位符，则只获取一次数据
 			if startIndex == -1 {
@@ -61,17 +62,23 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 					return nil, forceBreak, err
 				}
 				startIndex = int(result.Int())
+				if proxyReq.PageIndexStart != "" { // 配置中有，则优先使用配置中的起始值，这样可以避免前端翻页到第二页后点击导出，导致导出数据不全的问题。
+					startIndex = cast.ToInt(proxyReq.PageIndexStart)
+				}
 				startIndexRaw = result.Raw
 
 				if proxyReq.PageSizePath != "" {
 					result := gjson.GetBytes(body, proxyReq.PageSizePath)
 					if result.Exists() {
 						pageSize := result.Int()
+						if proxyReq.PageSize > 0 { // 配置中有，则优先使用配置中的每页大小值
+							pageSize = cast.ToInt64(proxyReq.PageSize)
+						}
 						pageSize = max(pageSize, Export_min_page_size)
 						pageSize = min(pageSize, Export_max_page_size)
 						if pageSize != result.Int() {
-							raw := exp.ReplaceAllString(result.Raw, cast.ToString(pageSize)) // 确保类型一致
-							body, err = sjson.SetRawBytes(body, proxyReq.PageSizePath, []byte(raw))
+							raw := exp.ReplaceAllString(result.Raw, cast.ToString(pageSize))        // 确保类型一致
+							body, err = sjson.SetRawBytes(body, proxyReq.PageSizePath, []byte(raw)) //修改body 的pageSize字段值
 							if err != nil {
 								return nil, forceBreak, err
 							}
@@ -81,8 +88,8 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 
 			}
 			pageIndex := startIndex + pageIndexDelta
-			raw := exp.ReplaceAllString(startIndexRaw, cast.ToString(pageIndex)) // 确保类型一致
-			body, err = sjson.SetRawBytes(body, proxyReq.PageIndexPath, []byte(raw))
+			indexRaw := exp.ReplaceAllString(startIndexRaw, cast.ToString(pageIndex)) // 确保类型一致
+			body, err = sjson.SetRawBytes(body, proxyReq.PageIndexPath, []byte(indexRaw))
 			if err != nil {
 				return nil, forceBreak, err
 			}
@@ -114,11 +121,21 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 			ecw = ecw.WithFieldMetas(fieldMetas)
 		}
 		for _, row := range data {
+			_rowNumber++
 			rowMap := make(map[string]string)
+			rowMap["_rowNumber"] = cast.ToString(_rowNumber)
 			for k, v := range row.Map() {
 				rowMap[k] = v.String()
-				items = append(items, rowMap)
 			}
+
+			if in.ProxyResponse.RecordFormatFn != nil {
+				rowMap, err = in.ProxyResponse.RecordFormatFn(rowMap)
+				if err != nil {
+					return nil, forceBreak, err
+				}
+			}
+
+			items = append(items, rowMap)
 		}
 		return items, forceBreak, nil
 	})
@@ -143,17 +160,22 @@ type ProxyRquest struct {
 	Method          string                                        `json:"method" validate:"required"`
 	Headers         map[string]string                             `json:"headers"`
 	Body            json.RawMessage                               `json:"body" validate:"required"`
-	PageIndexPath   string                                        `json:"pageIndexPath"` //页码参数路径，例如：$.data.pageIndex
-	PageSizePath    string                                        `json:"pageSizePath"`  //每页数量参数路径，例如：$.data.pageSize
-	MiddlewareFuncs apihttpprotocol.MiddlewareFuncsRequestMessage `json:"-"`             // 请求中间件函数列表，一般可以使用动态脚本生成
+	PageIndexPath   string                                        `json:"pageIndexPath"`  //页码参数路径，例如：$.data.pageIndex
+	PageIndexStart  string                                        `json:"pageIndexStart"` //起始页码，例如："0","1"
+	PageSizePath    string                                        `json:"pageSizePath"`   //每页数量参数路径，例如：$.data.pageSize
+	PageSize        int                                           `json:"pageSize"`       //每页数量，例如：100
+	MiddlewareFuncs apihttpprotocol.MiddlewareFuncsRequestMessage `json:"-"`              // 请求中间件函数列表，一般可以使用动态脚本生成
 }
+
 type ProxyResponse struct {
 	DataPath         string `json:"dataPath"  validate:"required"`
 	BusinessCodePath string `json:"businessCodePath"` //业务成功标识路径，例如：$.code
 	BusinessOkCode   string `json:"businessOkCode"`   //业务成功标识值，例如：0
 	//	BusinessOkJson   json.RawMessage                                `json:"businessOkJson"`   //业务成功标识json字符串，例如：{"code":0}
 	MiddlewareFuncs apihttpprotocol.MiddlewareFuncsResponseMessage `json:"-"` // 请求中间件函数列表，一般可以使用动态脚本生成
+	RecordFormatFn  defined.RecordFormatFn                         //格式化记录函数，例如：func(record map[string]string)(newRecord map[string]string,err error){ return record,nil}
 }
+
 type Settings struct {
 	Filename        string             `json:"filename" validate:"required"` //导出文件全称如 /static/export/20231018_1547.xlsx
 	FieldMetas      defined.FieldMetas `json:"fieldMetas"`                   //字段映射信息{"id":"ID","name":"姓名"}
@@ -185,6 +207,7 @@ type Request struct {
 
 type Response struct {
 	MiddlewareFuncs apihttpprotocol.MiddlewareFuncsResponseMessage `json:"-"` // 请求中间件函数列表，一般可以使用动态脚本生成
+	RecordFormatFn  defined.RecordFormatFn                         `json:"-"` //格式化记录函数，例如：func(record map[string]string)(newRecord map[string]string,err error){ return record,nil}
 }
 
 var Export_config_table sqlbuilder.TableConfig = repository.Export_config_table
@@ -225,25 +248,40 @@ func MakeExportApiIn(in MakeExportApiInArgs, table sqlbuilder.TableConfig) (expo
 	if err != nil {
 		return exportApiIn, err
 	}
-	requestMiddleware, responseMiddleware, err := config.ParseMiddleware()
+
+	recordFormatFn, err := config.ParseRecordFormatFn()
 	if err != nil {
 		return exportApiIn, err
 	}
-	if requestMiddleware != nil {
-		in.Request.MiddlewareFuncs.Add(requestMiddleware)
+	if recordFormatFn != nil {
+		in.Response.RecordFormatFn = recordFormatFn
 	}
-	if responseMiddleware != nil {
-		in.Response.MiddlewareFuncs.Add(responseMiddleware)
+	data := map[string]string{
+		"body": string(in.Request.Body),
+	}
+	reqDTO, err := config.ParseRequest(data)
+	if err != nil {
+		return exportApiIn, err
+	}
+
+	header := make(map[string]string)
+	for k, vArr := range reqDTO.Header {
+		for _, v := range vArr {
+			header[k] = v
+			break
+		}
 	}
 
 	exportApiIn = ExportApiIn{
 		ProxyRquest: ProxyRquest{
-			Url:             config.Url,
-			Method:          config.Method,
+			Url:             reqDTO.URL,
+			Method:          reqDTO.Method,
 			PageIndexPath:   config.PageIndexPath,
+			PageIndexStart:  config.PageIndexStart,
 			PageSizePath:    config.PageSizePath,
-			Body:            in.Request.Body,
-			Headers:         in.Request.Headers,
+			PageSize:        config.PageSize,
+			Body:            json.RawMessage(reqDTO.Body),
+			Headers:         header,
 			MiddlewareFuncs: in.Request.MiddlewareFuncs,
 		}, //请求数据参数
 		ProxyResponse: ProxyResponse{
@@ -251,6 +289,7 @@ func MakeExportApiIn(in MakeExportApiInArgs, table sqlbuilder.TableConfig) (expo
 			BusinessCodePath: config.BusinessCodePath,
 			BusinessOkCode:   config.BusinessOkCode,
 			MiddlewareFuncs:  in.Response.MiddlewareFuncs,
+			RecordFormatFn:   in.Response.RecordFormatFn,
 		}, //响应数据参数
 		Settings: Settings{
 			Filename:        filename,
