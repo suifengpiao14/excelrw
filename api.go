@@ -58,7 +58,7 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 			if startIndex == -1 {
 				result := gjson.GetBytes(body, proxyReq.PageIndexPath)
 				if !result.Exists() {
-					err = errors.Errorf("pageIndexPath:%s not found in body", proxyReq.PageIndexPath)
+					err = errors.Errorf("pageIndexPath:%s (not found in body(%s))", proxyReq.PageIndexPath, body)
 					return nil, forceBreak, err
 				}
 				startIndex = int(result.Int())
