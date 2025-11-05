@@ -200,13 +200,13 @@ func (m ExportConfigModel) ParseRecordFormatFn() (recordFormatFn defined.RecordF
 	return recordFormatFn, nil
 }
 
-func (m ExportConfigModel) ParseRequest(data any) (rDTO *httpraw.RequestDTO, err error) {
+func (m ExportConfigModel) ParseRequest(context ...any) (rDTO *httpraw.RequestDTO, err error) {
 	if m.ProxyRequestTpl == "" {
 		err = errors.Errorf(`ExportConfigModel.ProxyRequestTpl required ,ConfigKey:%s`, m.ConfigKey)
 		return nil, err
 	}
 	httpTpl := httpraw.HttpTpl(m.ProxyRequestTpl)
-	rDTO, err = httpTpl.RequestTDO(data)
+	rDTO, err = httpTpl.RequestTDO(context...)
 	if err != nil {
 		return nil, err
 	}

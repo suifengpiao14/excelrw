@@ -256,10 +256,12 @@ func MakeExportApiIn(in MakeExportApiInArgs, table sqlbuilder.TableConfig) (expo
 	if recordFormatFn != nil {
 		in.Response.RecordFormatFn = recordFormatFn
 	}
-	data := map[string]string{
-		"body": string(in.Request.Body),
+	data := map[string]any{
+		"body":    requestBody,
+		"bodyStr": string(in.Request.Body),
+		"headers": in.Request.Headers,
 	}
-	reqDTO, err := config.ParseRequest(data)
+	reqDTO, err := config.ParseRequest(data, requestBody)
 	if err != nil {
 		return exportApiIn, err
 	}
