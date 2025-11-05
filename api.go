@@ -261,7 +261,7 @@ func MakeExportApiIn(in MakeExportApiInArgs, table sqlbuilder.TableConfig) (expo
 		"bodyStr": string(in.Request.Body),
 		"headers": in.Request.Headers,
 	}
-	reqDTO, err := config.ParseRequest(data, requestBody)
+	reqDTO, err := config.ParseRequest(data)
 	if err != nil {
 		return exportApiIn, err
 	}
