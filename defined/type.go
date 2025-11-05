@@ -21,13 +21,13 @@ type FieldMeta struct {
 
 var ErrorFieldMeta = errors.Errorf("FieldMeta.Name is empty")
 
-func (fm *FieldMeta) parseTpl() *mustache.Template {
+func (fm *FieldMeta) parseTpl() (*mustache.Template, error) {
 	if fm.template != nil {
-		return fm.template
+		return fm.template, nil
 	}
 	if fm.Name == "" {
 		fm.err = ErrorFieldMeta
-		return nil
+		return nil, fm.err
 	}
 	tpl := fm.Name
 	if !strings.Contains(fm.Name, "{{") {
@@ -35,7 +35,7 @@ func (fm *FieldMeta) parseTpl() *mustache.Template {
 	}
 
 	fm.template, fm.err = mustache.ParseString(tpl)
-	return fm.template
+	return fm.template, fm.err
 }
 
 func (fm FieldMeta) GetValue(rowNumber int, row map[string]string) string {
@@ -49,7 +49,11 @@ func (fm FieldMeta) GetValue(rowNumber int, row map[string]string) string {
 	if value, ok := m[fm.Name]; ok {
 		return cast.ToString(value)
 	}
-	value := fm.parseTpl().Render(row, m)
+	tpl, err := fm.parseTpl()
+	if err != nil {
+		return err.Error()
+	}
+	value := tpl.Render(row, m)
 	return value
 }
 func (fm FieldMeta) GetMaxSize() int { return fm.maxSize }
