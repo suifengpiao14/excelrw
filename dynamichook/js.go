@@ -71,31 +71,36 @@ func (jsVm *JSVM) RecordFormatFn(fnName string) (fn defined.RecordFormatFn, err 
 
 }
 
-func (jsVm *JSVM) RequestHook(fnName string, requestDTO httpraw.RequestDTO) (newRequestDTO *httpraw.RequestDTO, err error) {
-	newRequestDTO = &requestDTO // 填充默认值
+func (jsVm *JSVM) RequestFormatFn(fnName string) (fn defined.RequestFormatFn, err error) {
+	fn = func(requestDTO httpraw.RequestDTO) (httpraw.RequestDTO, error) {
+		return requestDTO, nil
+	}
 	vm := jsVm.vm
 	jsFuncVal := vm.Get(fnName)
 	if jsFuncVal == nil {
 		err = errors.WithMessagef(ErrorJSNotFound, "function:%s", fnName)
-		return nil, err
+		return fn, err
 	}
 
 	jsFunc, ok := goja.AssertFunction(jsFuncVal)
 	if !ok {
-		err = fmt.Errorf("RequestHook%s is not a function", fnName)
-		return nil, err
+		err = fmt.Errorf("RequestFormatFn%s is not a function", fnName)
+		return fn, err
 	}
+	fn = func(requestDTO httpraw.RequestDTO) (httpraw.RequestDTO, error) {
+		jsRequestDTO := vm.ToValue(requestDTO)
+		res, err := jsFunc(goja.Undefined(), jsRequestDTO)
+		if err != nil {
+			err = errors.WithMessage(err, "RequestHook js execution error")
+			return requestDTO, err
+		}
+		var newRequestDTO2 httpraw.RequestDTO
+		if err := vm.ExportTo(res, &newRequestDTO2); err != nil {
+			err = errors.WithMessage(err, "RequestHook export js result error")
+			return requestDTO, err
+		}
+		return newRequestDTO2, nil
+	}
+	return fn, nil
 
-	jsRequestDTO := vm.ToValue(requestDTO)
-	res, err := jsFunc(goja.Undefined(), jsRequestDTO)
-	if err != nil {
-		err = errors.WithMessage(err, "RequestHook js execution error")
-		return nil, err
-	}
-	var newRequestDTO2 httpraw.RequestDTO
-	if err := vm.ExportTo(res, &newRequestDTO2); err != nil {
-		err = errors.WithMessage(err, "RequestHook export js result error")
-		return newRequestDTO, err
-	}
-	return &newRequestDTO2, nil
 }

@@ -3,6 +3,8 @@ package excelrw
 import (
 	"context"
 	"encoding/json"
+	"maps"
+	"net/http"
 	"regexp"
 	"time"
 
@@ -12,6 +14,7 @@ import (
 	"github.com/suifengpiao14/apihttpprotocol"
 	"github.com/suifengpiao14/excelrw/defined"
 	"github.com/suifengpiao14/excelrw/repository"
+	"github.com/suifengpiao14/httpraw"
 	"github.com/suifengpiao14/sqlbuilder"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -94,13 +97,39 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 				return nil, forceBreak, err
 			}
 		}
+		header := http.Header{}
+		for k, v := range in.ProxyRquest.Headers {
+			if _, ok := header[k]; !ok { // 这里使用非标准头写入方式，确保大小写和外部传入一致
+				header[k] = make([]string, 0)
+			}
+			header[k] = append(header[k], v)
+		}
 
-		client := apihttpprotocol.NewClientProtocol(proxyReq.Method, proxyReq.Url)
+		requestDTO := httpraw.RequestDTO{
+			URL:     proxyReq.Url,
+			Method:  proxyReq.Method,
+			Header:  header,
+			Cookies: make([]*http.Cookie, 0),
+			Body:    string(body),
+		}
+
+		if in.ProxyRquest.RequestFormatFn != nil {
+
+			newRequestDTO, err := in.ProxyRquest.RequestFormatFn(requestDTO)
+			if err != nil {
+				return nil, forceBreak, err
+			}
+			requestDTO = newRequestDTO
+		}
+
+		client := apihttpprotocol.NewClientProtocol(requestDTO.Method, requestDTO.URL)
 		client.Request().AddMiddleware(proxyReq.MiddlewareFuncs...)
 		client.Response().AddMiddleware(proxyRsp.MiddlewareFuncs...)
-		client.Request().SetHeader("Content-Type", "application/json")
+		client.Request().Headers = requestDTO.Header //设置头
+
 		var resp json.RawMessage
-		err = client.Do(body, &resp)
+		newBody := json.RawMessage([]byte(requestDTO.Body))
+		err = client.Do(newBody, &resp)
 		if err != nil {
 			return nil, forceBreak, err
 		}
@@ -165,6 +194,7 @@ type ProxyRquest struct {
 	PageSizePath    string                                        `json:"pageSizePath"`   //每页数量参数路径，例如：$.data.pageSize
 	PageSize        int                                           `json:"pageSize"`       //每页数量，例如：100
 	MiddlewareFuncs apihttpprotocol.MiddlewareFuncsRequestMessage `json:"-"`              // 请求中间件函数列表，一般可以使用动态脚本生成
+	RequestFormatFn defined.RequestFormatFn                       `json:"-"`              //请求格式化函数，例如：func(request httpraw.RequestDTO)(newRequest httpraw.RequestDTO,err error){ return request,nil}
 }
 
 type ProxyResponse struct {
@@ -203,6 +233,7 @@ type Request struct {
 	Body            json.RawMessage                               `json:"body"`    //请求体，例如：{"pageIndex":1}
 	Headers         map[string]string                             `json:"headers"` //请求头，例如：{"Content-Type":"application/json"}
 	MiddlewareFuncs apihttpprotocol.MiddlewareFuncsRequestMessage `json:"-"`       // 请求中间件函数列表，一般可以使用动态脚本生成
+	RequestFormatFn defined.RequestFormatFn                       `json:"-"`       //请求格式化函数，例如：func(request httpraw.RequestDTO)(newRequest httpraw.RequestDTO,err error){ return request,nil}
 }
 
 type Response struct {
@@ -249,13 +280,13 @@ func MakeExportApiIn(in MakeExportApiInArgs, table sqlbuilder.TableConfig) (expo
 		return exportApiIn, err
 	}
 
-	recordFormatFn, err := config.ParseRecordFormatFn()
+	recordFormatFn, requestFormatFn, err := config.ParseDynamicScript()
 	if err != nil {
 		return exportApiIn, err
 	}
-	if recordFormatFn != nil {
-		in.Response.RecordFormatFn = recordFormatFn
-	}
+	in.Request.RequestFormatFn = requestFormatFn
+	in.Response.RecordFormatFn = recordFormatFn
+
 	data := map[string]any{
 		"body":    requestBody,
 		"bodyStr": string(in.Request.Body),
@@ -273,7 +304,7 @@ func MakeExportApiIn(in MakeExportApiInArgs, table sqlbuilder.TableConfig) (expo
 			break
 		}
 	}
-
+	maps.Copy(header, in.Request.Headers)
 	exportApiIn = ExportApiIn{
 		ProxyRquest: ProxyRquest{
 			Url:             reqDTO.URL,
@@ -285,6 +316,7 @@ func MakeExportApiIn(in MakeExportApiInArgs, table sqlbuilder.TableConfig) (expo
 			Body:            json.RawMessage(reqDTO.Body),
 			Headers:         header,
 			MiddlewareFuncs: in.Request.MiddlewareFuncs,
+			RequestFormatFn: in.Request.RequestFormatFn,
 		}, //请求数据参数
 		ProxyResponse: ProxyResponse{
 			DataPath:         config.DataPath,

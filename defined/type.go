@@ -8,6 +8,7 @@ import (
 	"github.com/hoisie/mustache"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
+	"github.com/suifengpiao14/httpraw"
 )
 
 type FieldMeta struct {
@@ -84,3 +85,5 @@ func (fs *FieldMetas) Unmarshal(fieldMetasStr string) (err error) {
 }
 
 type RecordFormatFn func(record map[string]string) (newRecord map[string]string, err error)
+
+type RequestFormatFn func(requestDTO httpraw.RequestDTO) (newRequestDTO httpraw.RequestDTO, err error)

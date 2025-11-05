@@ -174,14 +174,15 @@ func (m ExportConfigModel) ParseFilename(context ...any) (filename string, err e
 // }
 
 var RecordFormatFnName = "recordFormatFn"
+var RequestFormatFnName = "requestFormatFn"
 
-func (m ExportConfigModel) ParseRecordFormatFn() (recordFormatFn defined.RecordFormatFn, err error) {
+func (m ExportConfigModel) ParseDynamicScript() (recordFormatFn defined.RecordFormatFn, requestFormatFn defined.RequestFormatFn, err error) {
 	if m.DynamicScript == "" {
-		return recordFormatFn, nil
+		return recordFormatFn, requestFormatFn, nil
 	}
 	jsvm, err := dynamichook.ParseJSVM(m.DynamicScript)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	recordFormatFn, err = jsvm.RecordFormatFn(RecordFormatFnName)
 	if err != nil {
@@ -190,14 +191,18 @@ func (m ExportConfigModel) ParseRecordFormatFn() (recordFormatFn defined.RecordF
 		}
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	if recordFormatFn == nil {
-		recordFormatFn = func(record map[string]string) (map[string]string, error) {
-			return record, nil
+	requestFormatFn, err = jsvm.RequestFormatFn(RequestFormatFnName)
+	if err != nil {
+		if errors.Is(err, dynamichook.ErrorJSNotFound) {
+			err = nil
 		}
 	}
-	return recordFormatFn, nil
+	if err != nil {
+		return nil, requestFormatFn, err
+	}
+	return recordFormatFn, requestFormatFn, nil
 }
 
 func (m ExportConfigModel) ParseRequest(context ...any) (rDTO *httpraw.RequestDTO, err error) {

@@ -178,8 +178,8 @@ github.com/suifengpiao14/httpraw v0.0.16 h1:dPXcMizYceBsdevw2MYikkc0ZSoDSjO3Iz8p
 github.com/suifengpiao14/httpraw v0.0.16/go.mod h1:ewULxuGtPDtGyVKXVS9CjLwur81BKbY+mUWWm6d4tdw=
 github.com/suifengpiao14/memorytable v0.1.5 h1:6xa74BHwfcxxA3txtmIlO2fOrxvs2GuaAK0MvRinKow=
 github.com/suifengpiao14/memorytable v0.1.5/go.mod h1:QP3CaseStArE8ocsgu5U6XtMeWeDdoqh0Le6FstDSaY=
-github.com/suifengpiao14/sqlbuilder v0.2.30 h1:gmJYoPWxDZi0uSSqf3SCJ86f1NcDu/CCbgO8nIdIYDw=
-github.com/suifengpiao14/sqlbuilder v0.2.30/go.mod h1:fLlFkotHQEEc6wGr02vFgeozq20RMENwJsL5WZsNKfE=
+github.com/suifengpiao14/sqlbuilder v0.2.33 h1:f+QQchPMVic1ZTypOrDuY4NAa0RqCvuMS5PkLpqpEFQ=
+github.com/suifengpiao14/sqlbuilder v0.2.33/go.mod h1:fLlFkotHQEEc6wGr02vFgeozq20RMENwJsL5WZsNKfE=
 github.com/suifengpiao14/sshmysql v0.0.7 h1:PEBvDQr71ZYsF48Yf4CdkZROWnmU5CEBWqY2t0CHgas=
 github.com/suifengpiao14/sshmysql v0.0.7/go.mod h1:YvD7LCCDjrK/zr1YkiCGZK5ETDevY9NKsQkJ2XDRb5Y=
 github.com/suifengpiao14/yaegijson v0.0.5 h1:tBksO/xCxU8XXRS+gtqmNGmoLnWon6QQIjZnrynlAi8=
