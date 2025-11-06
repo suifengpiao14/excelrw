@@ -11,6 +11,12 @@ func NewId(id int) (field *sqlbuilder.Field) {
 func NewConfigKey(configKey string) (field *sqlbuilder.Field) {
 	return commonlanguage.NewStringId(configKey).SetName("configKey").SetTitle("配置键")
 }
+func NewUrl(url string) (field *sqlbuilder.Field) {
+	return sqlbuilder.NewStringField(url, "url", "代理请求地址", 0)
+}
+func NewMethod(method string) (field *sqlbuilder.Field) {
+	return sqlbuilder.NewStringField(method, "method", "请求方法", 0)
+}
 
 //	func NewUrl(url string) (field *sqlbuilder.Field) {
 //		return sqlbuilder.NewStringField(url, "url", "请求地址", 0)

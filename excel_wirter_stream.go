@@ -163,13 +163,12 @@ type ExcelStreamWriter struct {
 	maxLoopCount  int // 最大循环次数
 }
 
-func NewExcelStreamWriter(ctx context.Context, filename string, fieldMetas defined.FieldMetas) (ecw *ExcelStreamWriter) {
+func NewExcelStreamWriter(ctx context.Context, filename string) (ecw *ExcelStreamWriter) {
 	excelWriter := NewExcelWriter()
 	ecw = &ExcelStreamWriter{
 		excelWriter: excelWriter,
-		filename:    filename,
+		filename:    filename, //开始随机给个文件名，后续根据需要再改名
 		sheet:       SheetDefault,
-		fieldMetas:  fieldMetas,
 		context:     ctx,
 	}
 	return ecw
@@ -243,7 +242,7 @@ func (ecw *ExcelStreamWriter) WithMaxLoopCount(maxLoopCount int) *ExcelStreamWri
 
 var DefalutMaxLoopCountLimit = 1000000 //最多循环次数限制
 
-func (ecw *ExcelStreamWriter) gethMaxLoopCount() int {
+func (ecw *ExcelStreamWriter) gethMaxLoopTimes() int {
 	if ecw.maxLoopCount > 0 {
 		return ecw.maxLoopCount
 	}
@@ -329,8 +328,8 @@ func (ecw *ExcelStreamWriter) Run() (errChan chan error, err error) {
 
 }
 func (ecw *ExcelStreamWriter) loop() (err error) {
-	loopCount := 0
-	maxLoopCount := ecw.gethMaxLoopCount()
+	loopTimes := 0
+	maxLoopTimes := ecw.gethMaxLoopTimes()
 	defer ecw.save()
 	for {
 		select {
@@ -338,16 +337,16 @@ func (ecw *ExcelStreamWriter) loop() (err error) {
 			return ecw.context.Err()
 		default:
 		}
-		if loopCount > maxLoopCount {
-			err = errors.Errorf("loop times is over limit:%d", maxLoopCount)
+		if loopTimes > maxLoopTimes {
+			err = errors.Errorf("loop times is over limit:%d", maxLoopTimes)
 			return err
 		}
-		loopCount++
-		data, forceBreak, err := ecw.fetcher(loopCount)
+		loopTimes++
+		data, forceBreak, err := ecw.fetcher(loopTimes)
 		if err != nil {
 			return err
 		}
-		if loopCount == 1 { // 第一次循环 ,写在len(data) == 0之前,确保需要写入标题时，一定会写入标题行数据,方便调试和测试)
+		if loopTimes == 1 { // 第一次循环 ,写在len(data) == 0之前,确保需要写入标题时，一定会写入标题行数据,方便调试和测试)
 			if !ecw.withoutTitleRow { // 第一次循环，增加标题行数据
 				data = append([]map[string]string{ecw.getTitleRow()}, data...) //添加到第一行
 			}
@@ -415,6 +414,12 @@ func (ecw *ExcelStreamWriter) save() (err error) {
 	err = ecw.fd.Close()
 	if err != nil {
 		return err
+	}
+	if ecw.fd.Path != ecw.filename { //文件名有变化，则重命名文件名
+		err = os.Rename(ecw.fd.Path, ecw.filename)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

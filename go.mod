@@ -5,22 +5,24 @@ go 1.23.0
 require (
 	github.com/dop251/goja v0.0.0-20251008123653-cf18d89f3cf6
 	github.com/go-playground/validator/v10 v10.27.0
+	github.com/google/uuid v1.6.0
 	github.com/hoisie/mustache v0.0.0-20160804235033-6375acf62c69
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cast v1.10.0
 	github.com/stretchr/testify v1.11.0
 	github.com/suifengpiao14/apihttpprotocol v0.0.13
 	github.com/suifengpiao14/commonlanguage v0.0.21
-	github.com/suifengpiao14/httpraw v0.0.16
+	github.com/suifengpiao14/httpraw v0.0.17
 	github.com/suifengpiao14/sqlbuilder v0.2.33
 	github.com/suifengpiao14/yaegijson v0.0.5
-	github.com/tidwall/gjson v1.18.0
-	github.com/tidwall/sjson v1.2.5
+	github.com/wk8/go-ordered-map/v2 v2.1.8
 	github.com/xuri/excelize/v2 v2.9.0
 )
 
 require (
 	github.com/ThreeDotsLabs/watermill v1.5.1 // indirect
+	github.com/bahlo/generic-list-go v0.2.0 // indirect
+	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/bytedance/sonic v1.11.6 // indirect
 	github.com/bytedance/sonic/loader v0.1.1 // indirect
 	github.com/cbroglie/mustache v1.4.0 // indirect
@@ -42,7 +44,6 @@ require (
 	github.com/go-sql-driver/mysql v1.7.0 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/google/pprof v0.0.0-20230207041349-798e818bf904 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/gopherjs/gopherjs v1.17.2 // indirect
 	github.com/jfcote87/sshdb v0.5.3 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
@@ -52,6 +53,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.2.7 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/lithammer/shortuuid/v3 v3.0.7 // indirect
+	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-sqlite3 v1.14.22 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -71,8 +73,10 @@ require (
 	github.com/suifengpiao14/gjsonmodifier v0.2.3 // indirect
 	github.com/suifengpiao14/memorytable v0.1.5 // indirect
 	github.com/suifengpiao14/sshmysql v0.0.7 // indirect
+	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
+	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/traefik/yaegi v0.16.1 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect

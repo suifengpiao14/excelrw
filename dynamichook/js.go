@@ -1,6 +1,7 @@
 package dynamichook
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/dop251/goja"
@@ -36,9 +37,18 @@ func (vm *JSVM) RunString(jsScript string) (err error) {
 	return nil
 }
 
-func (jsVm *JSVM) RecordFormatFn(fnName string) (fn defined.RecordFormatFn, err error) {
-	fn = func(record map[string]string) (newRecord map[string]string, err error) { // 确保一定有默认值，减少调用方nil判断的bug（比如调用方忽略ErrorJSNotFound 错误，直接使用fn）
-		return record, nil
+func (jsVm *JSVM) ResponseFormatFn(fnName string) (fn defined.ResponseFormatFn, err error) {
+	fn = func(responseDTO httpraw.ResponseDTO) (records []map[string]any, err error) {
+		records = make([]map[string]any, 0)
+		if json.Valid([]byte(responseDTO.Body)) {
+			err = json.Unmarshal([]byte(responseDTO.Body), &records)
+			if err != nil {
+				err = errors.WithMessagef(err, "json string:%s", responseDTO.Body)
+				return nil, err
+			}
+			return records, nil
+		}
+		return nil, nil
 	}
 	vm := jsVm.vm
 	jsFuncVal := vm.Get(fnName)
@@ -49,22 +59,22 @@ func (jsVm *JSVM) RecordFormatFn(fnName string) (fn defined.RecordFormatFn, err 
 
 	jsFunc, ok := goja.AssertFunction(jsFuncVal)
 	if !ok {
-		return fn, fmt.Errorf("RecordFormatFn%s is not a function", fnName)
+		return fn, fmt.Errorf("ResponseFormatFn%s is not a function", fnName)
 	}
 
 	// 封装成 Go 函数
-	fn = func(record map[string]string) (map[string]string, error) {
-		jsRecord := vm.ToValue(record)
-		res, err := jsFunc(goja.Undefined(), jsRecord)
+	fn = func(responseDTO httpraw.ResponseDTO) (records []map[string]any, err error) {
+		jsResponseDTO := vm.ToValue(responseDTO)
+		res, err := jsFunc(goja.Undefined(), jsResponseDTO)
 		if err != nil {
-			return nil, fmt.Errorf("RecordFormatFn js execution error: %w", err)
+			return nil, fmt.Errorf("ResponseFormatFn js execution error: %w", err)
 		}
 
-		var newRecord map[string]string
-		if err := vm.ExportTo(res, &newRecord); err != nil {
-			return nil, fmt.Errorf("RecordFormatFn export js result error: %w", err)
+		records = make([]map[string]any, 0)
+		if err := vm.ExportTo(res, &records); err != nil {
+			return nil, fmt.Errorf("ResponseFormatFn export js result error: %w", err)
 		}
-		return newRecord, nil
+		return records, nil
 	}
 
 	return fn, nil
@@ -91,12 +101,12 @@ func (jsVm *JSVM) RequestFormatFn(fnName string) (fn defined.RequestFormatFn, er
 		jsRequestDTO := vm.ToValue(requestDTO)
 		res, err := jsFunc(goja.Undefined(), jsRequestDTO)
 		if err != nil {
-			err = errors.WithMessage(err, "RequestHook js execution error")
+			err = errors.WithMessage(err, "RequestFormatFn js execution error")
 			return requestDTO, err
 		}
 		var newRequestDTO2 httpraw.RequestDTO
 		if err := vm.ExportTo(res, &newRequestDTO2); err != nil {
-			err = errors.WithMessage(err, "RequestHook export js result error")
+			err = errors.WithMessage(err, "RequestFormatFn export js result error")
 			return requestDTO, err
 		}
 		return newRequestDTO2, nil
