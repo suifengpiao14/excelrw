@@ -88,5 +88,11 @@ func (fs *FieldMetas) Unmarshal(fieldMetasStr string) (err error) {
 	return json.Unmarshal([]byte(fieldMetasStr), fs)
 }
 
+type RecordFormatFn func(record map[string]string) (newRecord map[string]string, err error)
 type RequestFormatFn func(requestDTO httpraw.RequestDTO) (newRequestDTO httpraw.RequestDTO, err error)
 type ResponseFormatFn func(responseDTO httpraw.ResponseDTO) (records []map[string]any, err error)
+type Setting struct {
+	Filename string     `json:"filename"`
+	Titles   FieldMetas `json:"titles"`
+}
+type SettingFn func(body string) (Setting Setting, err error)

@@ -167,7 +167,7 @@ func NewExcelStreamWriter(ctx context.Context, filename string) (ecw *ExcelStrea
 	excelWriter := NewExcelWriter()
 	ecw = &ExcelStreamWriter{
 		excelWriter: excelWriter,
-		filename:    filename, //开始随机给个文件名，后续根据需要再改名
+		filename:    filename,
 		sheet:       SheetDefault,
 		context:     ctx,
 	}
@@ -415,13 +415,6 @@ func (ecw *ExcelStreamWriter) save() (err error) {
 	if err != nil {
 		return err
 	}
-	if ecw.fd.Path != ecw.filename { //文件名有变化，则重命名文件名
-		err = os.Rename(ecw.fd.Path, ecw.filename)
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 

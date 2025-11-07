@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/suifengpiao14/excelrw"
+	"github.com/suifengpiao14/excelrw/defined"
 )
 
 func TestWriteWithChan(t *testing.T) {
@@ -15,17 +16,17 @@ func TestWriteWithChan(t *testing.T) {
 	err := json.Unmarshal([]byte(jsonData), &data)
 
 	require.NoError(t, err)
-	// filename := "./example/example.xlsx"
-	// fieldMetas := defined.FieldMetas{
-	// 	{Name: "__rowNumber", Title: "序号"},
-	// 	{Name: "Fsort", Title: "排序"},
-	// 	{Name: "Ftype", Title: "类型"},
-	// 	{Name: "Funique_code", Title: "唯一值"},
-	// 	{Name: "{{Fposition_name}}({{Fposition_code}})", Title: "位置名称(位置)"},
-	// 	{Name: "{{Fclass_name}}({{Fclass_key}})", Title: "分类名称(分类key)"},
-	// }
+	filename := "./example/example.xlsx"
+	fieldMetas := defined.FieldMetas{
+		{Name: "__rowNumber", Title: "序号"},
+		{Name: "Fsort", Title: "排序"},
+		{Name: "Ftype", Title: "类型"},
+		{Name: "Funique_code", Title: "唯一值"},
+		{Name: "{{Fposition_name}}({{Fposition_code}})", Title: "位置名称(位置)"},
+		{Name: "{{Fclass_name}}({{Fclass_key}})", Title: "分类名称(分类key)"},
+	}
 	ctx := context.Background()
-	ecw := excelrw.NewExcelStreamWriter(ctx)
+	ecw := excelrw.NewExcelStreamWriter(ctx, filename).WithFieldMetas(fieldMetas)
 	ecw.WithFetcher(func(loopIndex int) (rows []map[string]string, forceBreak bool, err error) {
 		return data, true, nil
 	})

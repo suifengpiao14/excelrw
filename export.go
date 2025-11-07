@@ -52,7 +52,7 @@ func (exportExcel ExportExcel) Export(params map[string]any) (excelFielname stri
 	}
 
 	ctx := context.Background()
-	ecw := NewExcelStreamWriter(ctx)
+	ecw := NewExcelStreamWriter(ctx, exportExcel.filename)
 	ecw = ecw.WithInterval(exportExcel.Interval).WithDeleteFile(exportExcel.DeleteFileDelay, exportExcel.ErrorHandler).WithFetcher(func(loopCount int) (rows []map[string]string, forceBreak bool, err error) {
 		rows, forceBreak, err = exportExcel.FetcherDataFn(loopCount, params)
 		if err != nil {
