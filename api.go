@@ -46,80 +46,82 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 	proxyReq := in.ProxyRquest
 	proxyRsp := in.ProxyResponse
 	filename := settings.Filename
-	fieldMetas := in.Settings.FieldMetas
-	ecw := NewExcelStreamWriter(ctx, filename).WithFieldMetas(fieldMetas)
-	startIndex := -1
+	ecw := NewExcelStreamWriter(ctx, filename).WithFieldMetas(in.Settings.FieldMetas)
+	startIndex := 0
 	startIndexRaw := ""
 	exp := regexp.MustCompile(`\d+`)
 	_rowNumber := 0
-	body := proxyReq.Body // body 的pageSize 有可能会被修改，所以在这里赋值
-	ecw = ecw.WithInterval(settings.Interval).WithDeleteFile(deleteFileDelay, nil).WithMaxLoopCount(maxLoopTimes).WithFetcher(func(loopTimes int) (rows []map[string]string, forceBreak bool, err error) {
-		if proxyReq.PageIndexPath == "" { //不带页码占位符，则只获取一次数据
-			forceBreak = true
+	bodyDefault := []byte(proxyReq.Body) // body 的pageSize 有可能会被修改，所以在这里赋值
+
+	if proxyReq.PageIndexPath != "" {
+		//获取pageIndex文本,在循环内替换
+		result := gjson.GetBytes(bodyDefault, proxyReq.PageIndexPath)
+		if !result.Exists() {
+			err = errors.Errorf("pageIndexPath:%s (not found in body(%s))", proxyReq.PageIndexPath, bodyDefault)
+			return nil, err
 		}
-		pageIndexDelta := loopTimes - 1
-
-		if proxyReq.PageIndexPath != "" { //带每页大小占位符，则只获取一次数据
-			if startIndex == -1 {
-				result := gjson.GetBytes(body, proxyReq.PageIndexPath)
-				if !result.Exists() {
-					err = errors.Errorf("pageIndexPath:%s (not found in body(%s))", proxyReq.PageIndexPath, body)
-					return nil, forceBreak, err
+		startIndex = int(result.Int())
+		if proxyReq.PageIndexStart != "" { // 配置中有，则优先使用配置中的起始值，这样可以避免前端翻页到第二页后点击导出，导致导出数据不全的问题。
+			startIndex = cast.ToInt(proxyReq.PageIndexStart)
+		}
+		startIndexRaw = result.Raw
+		//修正pageSize值
+		if proxyReq.PageSizePath != "" {
+			result := gjson.GetBytes(bodyDefault, proxyReq.PageSizePath)
+			if result.Exists() {
+				pageSize := result.Int()
+				if proxyReq.PageSize > 0 { // 配置中有，则优先使用配置中的每页大小值
+					pageSize = cast.ToInt64(proxyReq.PageSize)
 				}
-				startIndex = int(result.Int())
-				if proxyReq.PageIndexStart != "" { // 配置中有，则优先使用配置中的起始值，这样可以避免前端翻页到第二页后点击导出，导致导出数据不全的问题。
-					startIndex = cast.ToInt(proxyReq.PageIndexStart)
-				}
-				startIndexRaw = result.Raw
-
-				if proxyReq.PageSizePath != "" {
-					result := gjson.GetBytes(body, proxyReq.PageSizePath)
-					if result.Exists() {
-						pageSize := result.Int()
-						if proxyReq.PageSize > 0 { // 配置中有，则优先使用配置中的每页大小值
-							pageSize = cast.ToInt64(proxyReq.PageSize)
-						}
-						pageSize = max(pageSize, Export_min_page_size)
-						pageSize = min(pageSize, Export_max_page_size)
-						if pageSize != result.Int() {
-							raw := exp.ReplaceAllString(result.Raw, cast.ToString(pageSize))        // 确保类型一致
-							body, err = sjson.SetRawBytes(body, proxyReq.PageSizePath, []byte(raw)) //修改body 的pageSize字段值
-							if err != nil {
-								return nil, forceBreak, err
-							}
-						}
+				pageSize = max(pageSize, Export_min_page_size)
+				pageSize = min(pageSize, Export_max_page_size)
+				if pageSize != result.Int() {
+					raw := exp.ReplaceAllString(result.Raw, cast.ToString(pageSize))                      // 确保类型一致
+					bodyDefault, err = sjson.SetRawBytes(bodyDefault, proxyReq.PageSizePath, []byte(raw)) //修改body 的pageSize字段值
+					if err != nil {
+						return nil, err
 					}
 				}
-
 			}
+		}
+	}
+	maxLoopTimes := MaxLoopTimes
+	if proxyReq.PageIndexPath == "" { //不带页码占位符，则只获取一次数据
+		maxLoopTimes = 1 // 只获取一次数据
+	}
+
+	header := http.Header{}
+	for k, v := range in.ProxyRquest.Headers {
+		if _, ok := header[k]; !ok { // 这里使用非标准头写入方式，确保大小写和外部传入一致
+			header[k] = make([]string, 0)
+		}
+		header[k] = append(header[k], v)
+	}
+
+	requestDTODefault := httpraw.RequestDTO{
+		URL:     proxyReq.Url,
+		Method:  proxyReq.Method,
+		Header:  header,
+		Cookies: make([]*http.Cookie, 0),
+		Body:    string(bodyDefault),
+	}
+
+	ecw = ecw.WithInterval(settings.Interval).WithDeleteFile(deleteFileDelay, nil).WithMaxLoopCount(maxLoopTimes).WithFetcher(func(loopTimes int) (rows []map[string]string, err error) {
+		pageIndexDelta := loopTimes - 1
+		requestDTO := requestDTODefault
+		if proxyReq.PageIndexPath != "" {
 			pageIndex := startIndex + pageIndexDelta
 			indexRaw := exp.ReplaceAllString(startIndexRaw, cast.ToString(pageIndex)) // 确保类型一致
-			body, err = sjson.SetRawBytes(body, proxyReq.PageIndexPath, []byte(indexRaw))
+			requestDTO.Body, err = sjson.SetRaw(requestDTO.Body, proxyReq.PageIndexPath, indexRaw)
 			if err != nil {
-				return nil, forceBreak, err
+				return nil, err
 			}
-		}
-
-		header := http.Header{}
-		for k, v := range in.ProxyRquest.Headers {
-			if _, ok := header[k]; !ok { // 这里使用非标准头写入方式，确保大小写和外部传入一致
-				header[k] = make([]string, 0)
-			}
-			header[k] = append(header[k], v)
-		}
-
-		requestDTO := httpraw.RequestDTO{
-			URL:     proxyReq.Url,
-			Method:  proxyReq.Method,
-			Header:  header,
-			Cookies: make([]*http.Cookie, 0),
-			Body:    string(body),
 		}
 
 		if in.ProxyRquest.RequestFormatFn != nil {
 			newRequestDTO, err := in.ProxyRquest.RequestFormatFn(requestDTO)
 			if err != nil {
-				return nil, forceBreak, err
+				return nil, err
 			}
 			requestDTO = newRequestDTO
 		}
@@ -134,7 +136,7 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 		err = client.Do(newBody, &resp)
 		if err != nil {
 			err = errors.WithMessagef(err, "curl:%s", client.Request().CurlCommand())
-			return nil, forceBreak, err
+			return nil, err
 		}
 		if in.ProxyResponse.BusinessCodePath != "" {
 			businessCode := gjson.GetBytes(resp, in.ProxyResponse.BusinessCodePath).String()
@@ -145,19 +147,21 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 					Url:                  proxyReq.Url,
 					Response:             string(resp),
 				}
-				return nil, forceBreak, err
+				return nil, err
 			}
 		}
 		data := gjson.GetBytes(resp, proxyRsp.DataPath).Array()
-		items := make([]map[string]string, 0)
-		if len(fieldMetas) == 0 && len(data) > 0 { // 没有传入字段元数据，则自动从第一行获取字段名作为标题
+
+		if len(ecw.fieldMetas) == 0 && len(data) > 0 { // 没有传入字段元数据，则自动从第一行获取字段名作为标题
 			firstRow := data[0]
+			fieldMetas := make([]defined.FieldMeta, 0)
 			for key := range firstRow.Map() {
 				fieldMetas = append(fieldMetas, defined.FieldMeta{Name: key, Title: key})
 			}
 			ecw = ecw.WithFieldMetas(fieldMetas)
 		}
 
+		items := make([]map[string]string, 0)
 		for _, row := range data {
 			_rowNumber++
 			rowMap := make(map[string]string)
@@ -168,12 +172,12 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 			if in.ProxyResponse.RecordFormatFn != nil {
 				rowMap, err = in.ProxyResponse.RecordFormatFn(rowMap)
 				if err != nil {
-					return nil, forceBreak, err
+					return nil, err
 				}
 			}
 			items = append(items, rowMap)
 		}
-		return items, forceBreak, nil
+		return items, nil
 	})
 	errChan, err = ecw.Run()
 	return errChan, err
@@ -244,7 +248,7 @@ type ExportApiIn struct {
 }
 
 const (
-	maxLoopTimes = 50000 //最大循环次数，防止死循环
+	MaxLoopTimes = 50000 //最大循环次数，防止死循环
 )
 
 type MakeExportApiInArgs struct {

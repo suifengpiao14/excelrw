@@ -8,8 +8,8 @@ import (
 	"github.com/suifengpiao14/excelrw/defined"
 )
 
-type FetcherDataFn func(loopCount int, param map[string]any) (rows []map[string]string, forceBreak bool, err error) // 格式化请求参数、请求数据、返回数据 rows 为 []struct{} 或者 []map[string]any 格式
-type CallBackFn func(params map[string]any) error                                                                   // 回调函数，用于处理数据导出后的后续操作
+type FetcherDataFn func(loopCount int, param map[string]any) (rows []map[string]string, err error) // 格式化请求参数、请求数据、返回数据 rows 为 []struct{} 或者 []map[string]any 格式
+type CallBackFn func(params map[string]any) error                                                  // 回调函数，用于处理数据导出后的后续操作
 
 type ExportExcel struct {
 	filename        string             // 文件名称可能和具体导出场景有关,如导出操作用户id，所以改成get/set 方式处理
@@ -53,12 +53,12 @@ func (exportExcel ExportExcel) Export(params map[string]any) (excelFielname stri
 
 	ctx := context.Background()
 	ecw := NewExcelStreamWriter(ctx, exportExcel.filename)
-	ecw = ecw.WithInterval(exportExcel.Interval).WithDeleteFile(exportExcel.DeleteFileDelay, exportExcel.ErrorHandler).WithFetcher(func(loopCount int) (rows []map[string]string, forceBreak bool, err error) {
-		rows, forceBreak, err = exportExcel.FetcherDataFn(loopCount, params)
+	ecw = ecw.WithInterval(exportExcel.Interval).WithDeleteFile(exportExcel.DeleteFileDelay, exportExcel.ErrorHandler).WithFetcher(func(loopCount int) (rows []map[string]string, err error) {
+		rows, err = exportExcel.FetcherDataFn(loopCount, params)
 		if err != nil {
-			return nil, forceBreak, err
+			return nil, err
 		}
-		return rows, forceBreak, nil
+		return rows, nil
 	})
 	errChan, err := ecw.Run()
 	if err != nil {

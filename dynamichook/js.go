@@ -1,6 +1,8 @@
 package dynamichook
 
 import (
+	"crypto/md5"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 
@@ -20,6 +22,9 @@ type JSVM struct {
 
 func ParseJSVM(jsScript string) (jsvm *JSVM, err error) {
 	vm := goja.New()
+	vm.SetFieldNameMapper(goja.TagFieldNameMapper("json", true))
+	registerUtils(vm)
+
 	_, err = vm.RunString(jsScript)
 	if err != nil {
 		return nil, err
@@ -220,4 +225,45 @@ func (jsVm *JSVM) CallJsFn(jsFunc goja.Callable, input any, output any) (err err
 		}
 	}
 	return nil
+}
+
+// registerUtils 把 md5 / base64 函数注册到 goja VM
+func registerUtils(vm *goja.Runtime) {
+	// md5(str) -> hex string
+	vm.Set("md5", func(fc goja.FunctionCall) goja.Value {
+		if len(fc.Arguments) < 1 {
+			// 抛出 JS 类型错误
+			panic(vm.NewTypeError("md5 requires 1 argument"))
+		}
+		// 将第一个参数转换为字符串（JS 的 toString() 行为）
+		s := fc.Argument(0).String()
+		sum := md5.Sum([]byte(s))
+		hex := fmt.Sprintf("%x", sum)
+		return vm.ToValue(hex)
+	})
+
+	// base64Encode(str) -> base64 string
+	vm.Set("base64Encode", func(fc goja.FunctionCall) goja.Value {
+		if len(fc.Arguments) < 1 {
+			panic(vm.NewTypeError("base64Encode requires 1 argument"))
+		}
+		s := fc.Argument(0).String()
+		enc := base64.StdEncoding.EncodeToString([]byte(s))
+		return vm.ToValue(enc)
+	})
+
+	// base64Decode(b64str) -> decoded string (throws if invalid base64)
+	vm.Set("base64Decode", func(fc goja.FunctionCall) goja.Value {
+		if len(fc.Arguments) < 1 {
+			panic(vm.NewTypeError("base64Decode requires 1 argument"))
+		}
+		s := fc.Argument(0).String()
+		b, err := base64.StdEncoding.DecodeString(s)
+		if err != nil {
+			// 将 Go 错误包装成 JS 异常抛出
+			panic(vm.NewGoError(err))
+		}
+		return vm.ToValue(string(b))
+	})
+
 }

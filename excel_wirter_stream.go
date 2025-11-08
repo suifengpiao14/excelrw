@@ -144,7 +144,7 @@ func (excelWriter *_ExcelWriter) GetStreamWriter(fd *excelize.File, sheet string
 	return streamWriter, nextRowNumber, nil
 }
 
-type FetcherFn func(loopCount int) (rows []map[string]string, forceBreak bool, err error)
+type FetcherFn func(loopCount int) (rows []map[string]string, err error)
 
 type ExcelStreamWriter struct {
 	fd                *excelize.File
@@ -337,12 +337,13 @@ func (ecw *ExcelStreamWriter) loop() (err error) {
 			return ecw.context.Err()
 		default:
 		}
-		if loopTimes > maxLoopTimes {
+		loopTimes++
+		if loopTimes > maxLoopTimes { //如果maxLoopTimes=1 期望只想一次ecw.fetcher,所以需要在这之前loopTimes++,否则结合初始值,会多循环一次
 			err = errors.Errorf("loop times is over limit:%d", maxLoopTimes)
 			return err
 		}
-		loopTimes++
-		data, forceBreak, err := ecw.fetcher(loopTimes)
+
+		data, err := ecw.fetcher(loopTimes)
 		if err != nil {
 			return err
 		}
@@ -366,9 +367,6 @@ func (ecw *ExcelStreamWriter) loop() (err error) {
 		ecw.nextRowNumber, err = ecw.writeData(ecw.nextRowNumber, data)
 		if err != nil {
 			return err
-		}
-		if forceBreak {
-			break
 		}
 		if ecw.interval > 0 {
 			time.Sleep(ecw.interval)
