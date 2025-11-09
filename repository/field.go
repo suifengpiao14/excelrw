@@ -8,9 +8,13 @@ import (
 func NewId(id int) (field *sqlbuilder.Field) {
 	return commonlanguage.NewId(id)
 }
+func NewExportConfigKey(exportConfigKey string) (field *sqlbuilder.Field) {
+	return commonlanguage.NewStringId(exportConfigKey).SetName("exportConfigKey").SetTitle("导出配置键引用,多个逗号分隔")
+}
 func NewConfigKey(configKey string) (field *sqlbuilder.Field) {
 	return commonlanguage.NewStringId(configKey).SetName("configKey").SetTitle("配置键")
 }
+
 func NewUrl(url string) (field *sqlbuilder.Field) {
 	return sqlbuilder.NewStringField(url, "url", "代理请求地址", 0)
 }
