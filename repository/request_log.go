@@ -6,8 +6,12 @@ var Request_log_table = sqlbuilder.NewTableConfig("t_request_log").AddColumns(
 	sqlbuilder.NewColumn("Fid", sqlbuilder.GetField(NewId)),
 	sqlbuilder.NewColumn("Fconfig_id", sqlbuilder.GetField(NewConfigId)),
 	sqlbuilder.NewColumn("Frequest_dto", sqlbuilder.GetField(NewRequestDTO)),
+	sqlbuilder.NewColumn("Fcurl", sqlbuilder.GetField(NewCURL)),
 	sqlbuilder.NewColumn("Fresponse_dto", sqlbuilder.GetField(NewResponseDTO)),
+	sqlbuilder.NewColumn("Fbusiness_code_path", sqlbuilder.GetField(NewBusinessCodePath)),
+	sqlbuilder.NewColumn("Fbusiness_ok_code", sqlbuilder.GetField(NewBusinessOkCode)),
 	sqlbuilder.NewColumn("Fhttp_code", sqlbuilder.GetField(NewHttpCode)),
+	sqlbuilder.NewColumn("Ferror", sqlbuilder.GetField(NewError)),
 	sqlbuilder.NewColumn("Fresult", sqlbuilder.GetField(NewResult)),
 	sqlbuilder.NewColumn("Fcreated_at", sqlbuilder.GetField(NewCreatedAt)),
 	sqlbuilder.NewColumn("Fupdated_at", sqlbuilder.GetField(NewUpdatedAt)),
@@ -47,19 +51,24 @@ func NewRequestLogRepository() (repository *RequestLogRepository) {
 }
 
 type RequestLogRepositoryInsertIn struct {
-	ConfigId   int    `gorm:"column:configId"  json:"configId"`
-	RequestDTO string `gorm:"column:requestDTO"  json:"requestDTO"`
+	ConfigId         int    `gorm:"column:configId"  json:"configId"`
+	RequestDTO       string `gorm:"column:requestDTO"  json:"requestDTO"`
+	BusinessCodePath string `gorm:"column:businessCodePath"  json:"businessCodePath"`
+	BusinessOkCode   string `gorm:"column:businessOkCode"  json:"businessOkCode"`
+	CURL             string `gorm:"column:curl"  json:"curl"`
 }
 
 func (in RequestLogRepositoryInsertIn) Fields() sqlbuilder.Fields {
 	return sqlbuilder.Fields{
 		NewConfigId(in.ConfigId),
 		NewRequestDTO(in.RequestDTO),
+		NewBusinessCodePath(in.BusinessCodePath),
+		NewBusinessOkCode(in.BusinessOkCode),
 	}
 }
 
-func (r *RequestLogRepository) Insert(in RequestLogRepositoryInsertIn) (logId int, err error) {
-	err = r.table.Repository().Insert(in.Fields())
+func (r *RequestLogRepository) Insert(in RequestLogRepositoryInsertIn) (logId uint64, err error) {
+	logId, _, err = r.table.Repository().InsertWithLastId(in.Fields())
 	if err != nil {
 		return 0, err
 	}
@@ -71,6 +80,7 @@ type RequestLogRepositoryUpdateResponseIn struct {
 	ResponseDTO string `gorm:"column:responseDTO"  json:"responseDTO"`
 	HttpCode    string `gorm:"column:httpCode"  json:"httpCode"`
 	Result      string `gorm:"column:result"  json:"result"`
+	Error       string `gorm:"column:error"  json:"error"`
 }
 
 func (in RequestLogRepositoryUpdateResponseIn) Fields() sqlbuilder.Fields {
@@ -82,7 +92,7 @@ func (in RequestLogRepositoryUpdateResponseIn) Fields() sqlbuilder.Fields {
 	}
 }
 
-func (r *RequestLogRepository) UpdateResponse(in RequestLogRepositoryInsertIn) (err error) {
+func (r *RequestLogRepository) UpdateResponse(in RequestLogRepositoryUpdateResponseIn) (err error) {
 	err = r.table.Repository().Update(in.Fields())
 	if err != nil {
 		return err

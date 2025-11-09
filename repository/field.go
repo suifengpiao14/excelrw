@@ -36,6 +36,9 @@ func NewProxyRequestTpl(proxyRequestTpl string) (field *sqlbuilder.Field) {
 func NewRequestDTO(requestDTO string) (field *sqlbuilder.Field) {
 	return sqlbuilder.NewStringField(requestDTO, "requestDTO", "请求数据", int(sqlbuilder.Str_LONGTEXT))
 }
+func NewCURL(curl string) (field *sqlbuilder.Field) {
+	return sqlbuilder.NewStringField(curl, "curl", "curl命令", int(sqlbuilder.Str_LONGTEXT))
+}
 
 func NewResponseDTO(responseDTO string) (field *sqlbuilder.Field) {
 	return sqlbuilder.NewStringField(responseDTO, "responseDTO", "相应数据", int(sqlbuilder.Str_LONGTEXT))
@@ -43,6 +46,9 @@ func NewResponseDTO(responseDTO string) (field *sqlbuilder.Field) {
 
 func NewHttpCode(httpCode string) (field *sqlbuilder.Field) {
 	return sqlbuilder.NewStringField(httpCode, "httpCode", "http code", 0)
+}
+func NewError(err string) (field *sqlbuilder.Field) {
+	return sqlbuilder.NewStringField(err, "error", "错误提示", 512)
 }
 func NewResult(result string) (field *sqlbuilder.Field) {
 	return sqlbuilder.NewStringField(result, "result", "请求结果", 0)
