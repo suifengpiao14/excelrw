@@ -1,6 +1,13 @@
 package repository
 
-import "github.com/suifengpiao14/sqlbuilder"
+import (
+	"bytes"
+	"encoding/json"
+
+	"github.com/pkg/errors"
+	"github.com/suifengpiao14/httpraw"
+	"github.com/suifengpiao14/sqlbuilder"
+)
 
 var Export_callback_config_table = sqlbuilder.NewTableConfig("t_export_callback_config").AddColumns(
 	sqlbuilder.NewColumn("Fid", sqlbuilder.GetField(NewId)),
@@ -23,8 +30,40 @@ var Export_callback_config_table = sqlbuilder.NewTableConfig("t_export_callback_
 	},
 )
 
+type ExportCallbackConfig struct {
+	Id               int    `gorm:"column:id"  json:"id"`
+	ExportConfigKey  string `gorm:"column:exportConfigKey"  json:"exportConfigKey"`
+	ProxyRequestTpl  string `gorm:"column:proxyRequestTpl" json:"proxyRequestTpl"`
+	DynamicScript    string `gorm:"column:dynamicScript" json:"dynamicScript"`
+	BusinessCodePath string `gorm:"column:businessCodePath" json:"businessCodePath"`
+	BusinessOkCode   string `gorm:"column:businessOkCode" json:"businessOkCode"`
+	CreatedAt        string `gorm:"column:createdAt" json:"createdAt"`
+	UpdatedAt        string `gorm:"column:updatedAt" json:"updatedAt"`
+}
+type ExportCallbackConfigs []ExportCallbackConfig
+
 type ExportCallbackConfigRepository struct {
 	table sqlbuilder.TableConfig
+}
+
+func (m ExportCallbackConfig) ParseRequest(context ...any) (rDTO *httpraw.RequestDTO, err error) {
+	if m.ProxyRequestTpl == "" {
+		err = errors.Errorf(`ExportCallbackConfig.ProxyRequestTpl required ,ExportConfigKey:%s`, m.ExportConfigKey)
+		return nil, err
+	}
+	httpTpl := httpraw.HttpTpl(m.ProxyRequestTpl)
+	rDTO, err = httpTpl.RequestTDO(context...)
+	if err != nil {
+		return nil, err
+	}
+	var w bytes.Buffer
+	err = json.Compact(&w, []byte(rDTO.Body))
+	if err != nil {
+		err = errors.WithMessagef(err, `json.Compact(%s)`, rDTO.Body)
+		return nil, err
+	}
+	rDTO.Body = w.String()
+	return rDTO, nil
 }
 
 func NewExportCallbackConfigRepository(tableConfig sqlbuilder.TableConfig) ExportCallbackConfigRepository {
@@ -39,4 +78,17 @@ func NewExportCallbackConfigRepository(tableConfig sqlbuilder.TableConfig) Expor
 		table: tableConfig,
 	}
 	return s
+}
+
+func (s ExportCallbackConfigRepository) GetByExportConfigKey(configKeys ...string) (models ExportCallbackConfigs, err error) {
+	fs := sqlbuilder.Fields{}
+	for _, configKey := range configKeys {
+		f := NewConfigKey(configKey).AppendValueFn(sqlbuilder.ValueFnEmpty2Nil).AppendWhereFn(sqlbuilder.ValueFnFindInSet)
+		fs = fs.Add(f)
+	}
+	err = s.table.Repository().All(&models, fs)
+	if err != nil {
+		return nil, err
+	}
+	return models, nil
 }

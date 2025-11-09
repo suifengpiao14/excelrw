@@ -15,6 +15,10 @@ func NewConfigKey(configKey string) (field *sqlbuilder.Field) {
 	return commonlanguage.NewStringId(configKey).SetName("configKey").SetTitle("配置键")
 }
 
+func NewConfigId(id int) (field *sqlbuilder.Field) {
+	return sqlbuilder.NewIntField(id, "id", "配置ID", 0)
+}
+
 func NewUrl(url string) (field *sqlbuilder.Field) {
 	return sqlbuilder.NewStringField(url, "url", "代理请求地址", 0)
 }
@@ -27,6 +31,21 @@ func NewMethod(method string) (field *sqlbuilder.Field) {
 //	}
 func NewProxyRequestTpl(proxyRequestTpl string) (field *sqlbuilder.Field) {
 	return sqlbuilder.NewStringField(proxyRequestTpl, "proxyRequestTpl", "代理获取数据请求模板", 0)
+}
+
+func NewRequestDTO(requestDTO string) (field *sqlbuilder.Field) {
+	return sqlbuilder.NewStringField(requestDTO, "requestDTO", "请求数据", int(sqlbuilder.Str_LONGTEXT))
+}
+
+func NewResponseDTO(responseDTO string) (field *sqlbuilder.Field) {
+	return sqlbuilder.NewStringField(responseDTO, "responseDTO", "相应数据", int(sqlbuilder.Str_LONGTEXT))
+}
+
+func NewHttpCode(httpCode string) (field *sqlbuilder.Field) {
+	return sqlbuilder.NewStringField(httpCode, "httpCode", "http code", 0)
+}
+func NewResult(result string) (field *sqlbuilder.Field) {
+	return sqlbuilder.NewStringField(result, "result", "请求结果", 0)
 }
 
 // func NewMethod(method string) (field *sqlbuilder.Field) {
