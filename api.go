@@ -48,10 +48,6 @@ func (event ExportEvent) Publish() (err error) {
 	if err != nil {
 		return err
 	}
-
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -382,11 +378,9 @@ func MakeExportApiIn(in MakeExportApiInArgs, configTable sqlbuilder.TableConfig)
 	in.Response.RecordFormatFn = dynamicFn.RecordFormatFn
 
 	data := map[string]any{
-		"body":    requestBody,
-		"bodyStr": string(in.Request.Body),
-		"headers": in.Request.Headers,
+		"body": string(in.Request.Body),
 	}
-	reqDTO, err := config.ParseRequest(data)
+	reqDTO, err := config.ParseRequest(data, requestBody)
 	if err != nil {
 		return exportApiIn, err
 	}
@@ -433,4 +427,18 @@ func MakeExportApiIn(in MakeExportApiInArgs, configTable sqlbuilder.TableConfig)
 		},
 	}
 	return exportApiIn, nil
+}
+
+const (
+	Task_status_success   = "success"
+	Task_status_failed    = "fail"
+	Task_status_exporting = "exporting"
+)
+
+func CreateExportTask(in ExportApiIn) (id uint64, err error) {
+	return 0, nil
+}
+
+func UpdateTaskStatus(taskId uint64, result string, remark string) (err error) {
+	return nil
 }

@@ -29,6 +29,38 @@ func NewMethod(method string) (field *sqlbuilder.Field) {
 //	func NewUrl(url string) (field *sqlbuilder.Field) {
 //		return sqlbuilder.NewStringField(url, "url", "请求地址", 0)
 //	}
+
+func NewAppId(appId string) (field *sqlbuilder.Field) {
+	return sqlbuilder.NewStringField(appId, "appId", "APP标识", 0)
+}
+func NewCreatorId(creatorId string) (field *sqlbuilder.Field) {
+	return sqlbuilder.NewStringField(creatorId, "creatorId", "创建者id", 0)
+}
+
+func NewFilename(filename string) (field *sqlbuilder.Field) {
+	return sqlbuilder.NewStringField(filename, "filename", "文件名", 0)
+}
+func NewMD5(md5 string) (field *sqlbuilder.Field) {
+	return sqlbuilder.NewStringField(md5, "md5", "任务指纹", 0)
+}
+func NewStatus(status string) (field *sqlbuilder.Field) {
+	return sqlbuilder.NewStringField(status, "status", "状态", 0)
+}
+func NewTimeout(timeout string) (field *sqlbuilder.Field) {
+	return sqlbuilder.NewStringField(timeout, "timeout", "超时时间", 0)
+}
+
+func NewSize(size int) (field *sqlbuilder.Field) {
+	return sqlbuilder.NewIntField(size, "size", "文件大小", 0)
+}
+func NewRemark(remark string) (field *sqlbuilder.Field) {
+	return sqlbuilder.NewStringField(remark, "remark", "备注", 0)
+}
+
+func NewExpiredAt(expiredAt string) (field *sqlbuilder.Field) {
+	return sqlbuilder.NewStringField(expiredAt, "expiredAt", "过期时间点", 0)
+}
+
 func NewProxyRequestTpl(proxyRequestTpl string) (field *sqlbuilder.Field) {
 	return sqlbuilder.NewStringField(proxyRequestTpl, "proxyRequestTpl", "代理获取数据请求模板", 0)
 }
