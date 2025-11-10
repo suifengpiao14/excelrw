@@ -9,10 +9,13 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/ThreeDotsLabs/watermill"
+	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/go-playground/validator/v10"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 	"github.com/suifengpiao14/apihttpprotocol"
+	"github.com/suifengpiao14/domaineventpubsub"
 	"github.com/suifengpiao14/excelrw/defined"
 	"github.com/suifengpiao14/excelrw/repository"
 	"github.com/suifengpiao14/httpraw"
@@ -25,6 +28,58 @@ var (
 	Export_min_page_size int64 = 100 //最小页大小,页码太小循环次数太多，性能不好(该值也不宜设置过大，部分系统列表返回有上限，遇到这种情况，可以将该值赋值为最大上限即可，设置为0，则无最小值限制)
 
 	Export_max_page_size int64 = 100000 //最大页大小,太大内存占用太多，影响稳定性，这个值一般不用修改
+)
+
+var MessageLogger = watermill.NewStdLogger(false, false)
+
+var exportTopic = "export_topic_463b0a36567f01d8de4ac691aa4167da"
+
+type ExportEvent struct {
+	EventID string `json:"eventId"`
+	FileUrl string `json:"fileUrl"`
+}
+
+func (event ExportEvent) Publish() (err error) {
+	msg, err := event.toMessage()
+	if err != nil {
+		return err
+	}
+	err = domaineventpubsub.Publish(exportTopic, msg)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (event ExportEvent) toMessage() (msg *message.Message, err error) {
+	b, err := json.Marshal(event)
+	if err != nil {
+		return nil, err
+	}
+	msg = message.NewMessage(watermill.NewUUID(), b)
+	return msg, nil
+}
+
+func init() {
+	// 注册消费者
+	domaineventpubsub.RegisterConsumer(domaineventpubsub.Consumer{
+		Description: "导出任务完成事件",
+		Topic:       exportTopic,
+		WorkFn: domaineventpubsub.MakeWorkFn(func(event ExportEvent) (err error) {
+			//todo 此处可以添加日志记录，导出完成事件
+			return nil
+		}),
+	})
+
+	// 启动消费者
+	err := domaineventpubsub.StartConsumer()
+	if err != nil {
+		panic(err)
+	}
+}
+
+const (
+	ExportEvent_EventID_finished = "finished" //导出完成事件ID
 )
 
 // 导出到Excel文件Api ，可直接对接http请求
@@ -106,7 +161,7 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 		Body:    string(bodyDefault),
 	}
 
-	ecw = ecw.WithInterval(settings.Interval).WithDeleteFile(deleteFileDelay, nil).WithMaxLoopCount(maxLoopTimes).WithFetcher(func(loopTimes int) (rows []map[string]string, err error) {
+	ecw = ecw.WithInterval(settings.Interval).WithDeleteFile(deleteFileDelay, nil).WithMaxLoopCount(maxLoopTimes).WithCallback(in.CallBackFns...).WithFetcher(func(loopTimes int) (rows []map[string]string, err error) {
 		pageIndexDelta := loopTimes - 1
 		requestDTO := requestDTODefault
 		if proxyReq.PageIndexPath != "" {
@@ -242,9 +297,10 @@ type Settings struct {
 }
 
 type ExportApiIn struct {
-	ProxyRquest   ProxyRquest   `json:"proxyRequest" validate:"required"`  //请求数据参数
-	ProxyResponse ProxyResponse `json:"proxyResponse" validate:"required"` //响应数据参数
-	Settings      Settings      `json:"settings" validate:"required"`      //配置信息
+	ProxyRquest   ProxyRquest    `json:"proxyRequest" validate:"required"`  //请求数据参数
+	ProxyResponse ProxyResponse  `json:"proxyResponse" validate:"required"` //响应数据参数
+	Settings      Settings       `json:"settings" validate:"required"`      //配置信息
+	CallBackFns   []CallBackFnV2 `json:"-"`                                 //回调函数列表，例如：func(fileUrl string)(err error){ return nil}
 }
 
 const (
@@ -252,6 +308,7 @@ const (
 )
 
 type MakeExportApiInArgs struct {
+	Async     bool     `json:"async"`     //是否异步执行，默认同步
 	ConfigKey string   `json:"configKey"` //配置键，例如：user_list
 	Request   Request  `json:"request"`   //请求数据参数
 	Response  Response `json:"-"`         //响应数据参数,只用于收集中间件,不对外开放
@@ -273,9 +330,17 @@ var Export_config_table sqlbuilder.TableConfig = repository.Export_config_table
 var IdTimeColumns = repository.IdTimeColumns
 var IdIndex = repository.IdIndex
 
+type TableConfig struct {
+	ConfigTable         sqlbuilder.TableConfig
+	ConfigCallbackTable sqlbuilder.TableConfig
+	TaskTable           sqlbuilder.TableConfig
+	CallbacTaskTable    sqlbuilder.TableConfig
+}
+
 // MakeExportApiIn 生成导出配置信息
-func MakeExportApiIn(in MakeExportApiInArgs, table sqlbuilder.TableConfig) (exportApiIn ExportApiIn, err error) {
-	exportConfigRepository := repository.NewExportConfigRepository(table)
+func MakeExportApiIn(in MakeExportApiInArgs, TableConfig TableConfig) (exportApiIn ExportApiIn, err error) {
+	configTable := TableConfig.ConfigTable
+	exportConfigRepository := repository.NewExportConfigRepository(configTable)
 	getIn := repository.ExportConfigRepositoryGetIn{
 		ConfigKey: in.ConfigKey,
 	}
@@ -359,6 +424,19 @@ func MakeExportApiIn(in MakeExportApiInArgs, table sqlbuilder.TableConfig) (expo
 			Interval:        tnterval,
 			DeleteFileDelay: deleteFileDelay,
 		}, //配置信息
+		CallBackFns: []CallBackFnV2{
+			func(fileUrl string) (err error) {
+				event := ExportEvent{
+					EventID: ExportEvent_EventID_finished,
+					FileUrl: fileUrl,
+				}
+				err = event.Publish()
+				if err != nil {
+					return err
+				}
+				return nil
+			},
+		},
 	}
 	return exportApiIn, nil
 }

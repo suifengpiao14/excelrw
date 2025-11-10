@@ -3,6 +3,7 @@ module github.com/suifengpiao14/excelrw
 go 1.23.0
 
 require (
+	github.com/ThreeDotsLabs/watermill v1.5.1
 	github.com/cbroglie/mustache v1.4.0
 	github.com/dop251/goja v0.0.0-20251008123653-cf18d89f3cf6
 	github.com/go-playground/validator/v10 v10.27.0
@@ -13,7 +14,8 @@ require (
 	github.com/stretchr/testify v1.11.0
 	github.com/suifengpiao14/apihttpprotocol v0.0.15
 	github.com/suifengpiao14/commonlanguage v0.0.21
-	github.com/suifengpiao14/httpraw v0.0.18
+	github.com/suifengpiao14/domaineventpubsub v0.0.0-20251110024824-da0c10a8fe30
+	github.com/suifengpiao14/httpraw v0.0.19
 	github.com/suifengpiao14/sqlbuilder v0.2.33
 	github.com/suifengpiao14/yaegijson v0.0.5
 	github.com/tidwall/gjson v1.18.0
@@ -22,7 +24,6 @@ require (
 )
 
 require (
-	github.com/ThreeDotsLabs/watermill v1.5.1 // indirect
 	github.com/bytedance/sonic v1.11.6 // indirect
 	github.com/bytedance/sonic/loader v0.1.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect

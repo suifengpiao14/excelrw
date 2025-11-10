@@ -161,7 +161,10 @@ type ExcelStreamWriter struct {
 	fetcher       FetcherFn
 	interval      time.Duration
 	maxLoopCount  int // 最大循环次数
+	callbacks     []CallBackFnV2
 }
+
+type CallBackFnV2 func(fileUrl string) (err error)
 
 func NewExcelStreamWriter(ctx context.Context, filename string) (ecw *ExcelStreamWriter) {
 	excelWriter := NewExcelWriter()
@@ -310,6 +313,11 @@ func (ecw *ExcelStreamWriter) init() (err error) {
 	return
 }
 
+func (ecw *ExcelStreamWriter) WithCallback(callbackFns ...CallBackFnV2) *ExcelStreamWriter {
+	ecw.callbacks = append(ecw.callbacks, callbackFns...)
+	return ecw
+}
+
 // Run 执行导出 ,返回错误通道,如果需要同步，则调用方只需同步等待errChan结果即可，若为异步执行，则调用方只需将errChan异步处理即可或者忽略
 func (ecw *ExcelStreamWriter) Run() (errChan chan error, err error) {
 
@@ -324,6 +332,12 @@ func (ecw *ExcelStreamWriter) Run() (errChan chan error, err error) {
 		close(errChan)
 	}()
 
+	for _, callBackFn := range ecw.callbacks {
+		err = callBackFn(ecw.filename)
+		if err != nil {
+			return errChan, err
+		}
+	}
 	return errChan, nil
 
 }
