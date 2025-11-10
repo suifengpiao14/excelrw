@@ -266,4 +266,20 @@ func registerUtils(vm *goja.Runtime) {
 		return vm.ToValue(string(b))
 	})
 
+	console := map[string]func(goja.FunctionCall) goja.Value{
+		"log": func(fc goja.FunctionCall) goja.Value {
+			// 简单打印所有参数的字符串形式
+			out := ""
+			for i, a := range fc.Arguments {
+				if i > 0 {
+					out += " "
+				}
+				out += a.String()
+			}
+			fmt.Println(out)
+			return goja.Undefined()
+		},
+	}
+	vm.Set("console", console)
+
 }

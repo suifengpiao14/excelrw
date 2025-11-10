@@ -44,7 +44,11 @@ func (event ExportEvent) Publish() (err error) {
 	if err != nil {
 		return err
 	}
-	err = domaineventpubsub.Publish(exportTopic, msg)
+	err = domaineventpubsub.Publish(exportTopic, event.EventID, msg)
+	if err != nil {
+		return err
+	}
+
 	if err != nil {
 		return err
 	}
@@ -60,22 +64,28 @@ func (event ExportEvent) toMessage() (msg *message.Message, err error) {
 	return msg, nil
 }
 
-func init() {
-	// 注册消费者
-	domaineventpubsub.RegisterConsumer(domaineventpubsub.Consumer{
-		Description: "导出任务完成事件",
-		Topic:       exportTopic,
-		WorkFn: domaineventpubsub.MakeWorkFn(func(event ExportEvent) (err error) {
-			//todo 此处可以添加日志记录，导出完成事件
-			return nil
-		}),
-	})
-
-	// 启动消费者
-	err := domaineventpubsub.StartConsumer()
-	if err != nil {
-		panic(err)
+func RegisterCallback(callBackFns ...CallBackFnV2) (err error) {
+	consumers := make([]domaineventpubsub.Consumer, 0)
+	for _, callBackFn := range callBackFns {
+		if callBackFn == nil {
+			continue
+		}
+		workFn := func(event ExportEvent) error {
+			return callBackFn(event.FileUrl)
+		}
+		consumers = append(consumers, domaineventpubsub.Consumer{
+			Description: "导出任务完成事件",
+			Topic:       exportTopic,
+			RouteKey:    ExportEvent_EventID_finished,
+			WorkFn:      domaineventpubsub.MakeWorkFn(workFn),
+		})
 	}
+
+	err = domaineventpubsub.RegisterConsumer(consumers...)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 const (
@@ -161,7 +171,7 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 		Body:    string(bodyDefault),
 	}
 
-	ecw = ecw.WithInterval(settings.Interval).WithDeleteFile(deleteFileDelay, nil).WithMaxLoopCount(maxLoopTimes).WithCallback(in.CallBackFns...).WithFetcher(func(loopTimes int) (rows []map[string]string, err error) {
+	ecw = ecw.WithInterval(settings.Interval).WithDeleteFile(deleteFileDelay, nil).WithMaxLoopCount(maxLoopTimes).WithFetcher(func(loopTimes int) (rows []map[string]string, err error) {
 		pageIndexDelta := loopTimes - 1
 		requestDTO := requestDTODefault
 		if proxyReq.PageIndexPath != "" {
