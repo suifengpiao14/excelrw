@@ -338,8 +338,7 @@ type TableConfig struct {
 }
 
 // MakeExportApiIn 生成导出配置信息
-func MakeExportApiIn(in MakeExportApiInArgs, TableConfig TableConfig) (exportApiIn ExportApiIn, err error) {
-	configTable := TableConfig.ConfigTable
+func MakeExportApiIn(in MakeExportApiInArgs, configTable sqlbuilder.TableConfig) (exportApiIn ExportApiIn, err error) {
 	exportConfigRepository := repository.NewExportConfigRepository(configTable)
 	getIn := repository.ExportConfigRepositoryGetIn{
 		ConfigKey: in.ConfigKey,
