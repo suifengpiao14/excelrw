@@ -33,14 +33,14 @@ func ProxyRequest(in *ProxyRequestIn) (err error) {
 	requestDTO := in.ReqDTO
 
 	client := apihttpprotocol.NewClientProtocol(requestDTO.Method, requestDTO.URL)
-	client.Request().Headers = requestDTO.Header //设置头
+	client.Request().Headers = requestDTO.Headers.HttpHeaders() //设置头
 
 	var resp json.RawMessage
 	err = client.Do(requestDTO.Body, &resp)
 	response := client.Response()
 	responseDTO := httpraw.ResponseDTO{
-		Header: response.Headers,
-		Body:   string(resp),
+		Headers: httpraw.HttpHeader2Headers(response.Headers),
+		Body:    string(resp),
 	}
 	errStr := ""
 	if err != nil {

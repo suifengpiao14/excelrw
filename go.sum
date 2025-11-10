@@ -172,12 +172,14 @@ github.com/suifengpiao14/commonlanguage v0.0.21 h1:me4tebAPpv4iHfwZNivgZ1jCljlGC
 github.com/suifengpiao14/commonlanguage v0.0.21/go.mod h1:N57yJGgInOFRx427VnqAvPVvAsPS6KFFxHyV4tyJmCk=
 github.com/suifengpiao14/domaineventpubsub v0.0.0-20251110024824-da0c10a8fe30 h1:1eeg7rhBvly2BhdEeryB/SU4MmYSq3WI/InkstTwhqY=
 github.com/suifengpiao14/domaineventpubsub v0.0.0-20251110024824-da0c10a8fe30/go.mod h1:pfAvQTZX4ON7CJ5DIx6OOWQOL4uZJ/TgM13URny2jNc=
+github.com/suifengpiao14/domaineventpubsub v0.0.0-20251110034535-c12dbfae1a88 h1:Hc3JSCtobx+yl+s/B1s+YFOFUWbe8vbEy3APYkXWZk0=
+github.com/suifengpiao14/domaineventpubsub v0.0.0-20251110034535-c12dbfae1a88/go.mod h1:pfAvQTZX4ON7CJ5DIx6OOWQOL4uZJ/TgM13URny2jNc=
 github.com/suifengpiao14/funcs v0.0.25 h1:6WIUtCdNJbAv2MAvTx7v+q4xvaeQH1HpnTykkMEwJ9U=
 github.com/suifengpiao14/funcs v0.0.25/go.mod h1:g95inzlUrS2Vtyvv5SjVFOnOeX7ZBPWwyKuEMMW+g7U=
 github.com/suifengpiao14/gjsonmodifier v0.2.3 h1:f0fkXk83/wT+Nch9VAH5jFnKQaFB3EC4AdnYnVGZ9bY=
 github.com/suifengpiao14/gjsonmodifier v0.2.3/go.mod h1:cNjb77XAg+5L0teQ6ktJE5SXZ0upp0lOmclaI0VPPKI=
-github.com/suifengpiao14/httpraw v0.0.19 h1:QYI/xZIvvD6iJT/gCpUi7Sidds9VJ7qAo8bdTDys6aU=
-github.com/suifengpiao14/httpraw v0.0.19/go.mod h1:ewULxuGtPDtGyVKXVS9CjLwur81BKbY+mUWWm6d4tdw=
+github.com/suifengpiao14/httpraw v0.0.20 h1:G+uhUFEUds1PcBx4f7DGgqHV6TZgzHlbyKEAFm+EaU8=
+github.com/suifengpiao14/httpraw v0.0.20/go.mod h1:ewULxuGtPDtGyVKXVS9CjLwur81BKbY+mUWWm6d4tdw=
 github.com/suifengpiao14/memorytable v0.1.5 h1:6xa74BHwfcxxA3txtmIlO2fOrxvs2GuaAK0MvRinKow=
 github.com/suifengpiao14/memorytable v0.1.5/go.mod h1:QP3CaseStArE8ocsgu5U6XtMeWeDdoqh0Le6FstDSaY=
 github.com/suifengpiao14/sqlbuilder v0.2.33 h1:f+QQchPMVic1ZTypOrDuY4NAa0RqCvuMS5PkLpqpEFQ=

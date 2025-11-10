@@ -14,8 +14,8 @@ require (
 	github.com/stretchr/testify v1.11.0
 	github.com/suifengpiao14/apihttpprotocol v0.0.15
 	github.com/suifengpiao14/commonlanguage v0.0.21
-	github.com/suifengpiao14/domaineventpubsub v0.0.0-20251110024824-da0c10a8fe30
-	github.com/suifengpiao14/httpraw v0.0.19
+	github.com/suifengpiao14/domaineventpubsub v0.0.0-20251110034535-c12dbfae1a88
+	github.com/suifengpiao14/httpraw v0.0.20
 	github.com/suifengpiao14/sqlbuilder v0.2.33
 	github.com/suifengpiao14/yaegijson v0.0.5
 	github.com/tidwall/gjson v1.18.0

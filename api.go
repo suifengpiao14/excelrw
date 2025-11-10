@@ -155,18 +155,10 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 		maxLoopTimes = 1 // 只获取一次数据
 	}
 
-	header := http.Header{}
-	for k, v := range in.ProxyRquest.Headers {
-		if _, ok := header[k]; !ok { // 这里使用非标准头写入方式，确保大小写和外部传入一致
-			header[k] = make([]string, 0)
-		}
-		header[k] = append(header[k], v)
-	}
-
 	requestDTODefault := httpraw.RequestDTO{
 		URL:     proxyReq.Url,
 		Method:  proxyReq.Method,
-		Header:  header,
+		Headers: in.ProxyRquest.Headers,
 		Cookies: make([]*http.Cookie, 0),
 		Body:    string(bodyDefault),
 	}
@@ -194,7 +186,7 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 		client := apihttpprotocol.NewClientProtocol(requestDTO.Method, requestDTO.URL)
 		client.Request().AddMiddleware(proxyReq.MiddlewareFuncs...)
 		client.Response().AddMiddleware(proxyRsp.MiddlewareFuncs...)
-		client.Request().Headers = requestDTO.Header //设置头
+		client.Request().Headers = requestDTO.Headers.HttpHeaders() //设置头
 
 		var resp json.RawMessage
 		newBody := json.RawMessage([]byte(requestDTO.Body))
@@ -398,14 +390,7 @@ func MakeExportApiIn(in MakeExportApiInArgs, configTable sqlbuilder.TableConfig)
 	if err != nil {
 		return exportApiIn, err
 	}
-
-	header := make(map[string]string)
-	for k, vArr := range reqDTO.Header {
-		for _, v := range vArr {
-			header[k] = v
-			break
-		}
-	}
+	header := reqDTO.Headers
 	maps.Copy(header, in.Request.Headers)
 	exportApiIn = ExportApiIn{
 		ProxyRquest: ProxyRquest{
