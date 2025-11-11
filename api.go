@@ -10,12 +10,10 @@ import (
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill"
-	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/go-playground/validator/v10"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 	"github.com/suifengpiao14/apihttpprotocol"
-	"github.com/suifengpiao14/domaineventpubsub"
 	"github.com/suifengpiao14/excelrw/defined"
 	"github.com/suifengpiao14/excelrw/repository"
 	"github.com/suifengpiao14/httpraw"
@@ -32,57 +30,57 @@ var (
 
 var MessageLogger = watermill.NewStdLogger(false, false)
 
-var exportTopic = "export_topic_463b0a36567f01d8de4ac691aa4167da"
+//var exportTopic = "export_topic_463b0a36567f01d8de4ac691aa4167da"
 
-type ExportEvent struct {
-	EventID string `json:"eventId"`
-	FileUrl string `json:"fileUrl"`
-}
+// type ExportEvent struct {
+// 	EventID string `json:"eventId"`
+// 	FileUrl string `json:"fileUrl"`
+// }
 
-func (event ExportEvent) Publish() (err error) {
-	msg, err := event.toMessage()
-	if err != nil {
-		return err
-	}
-	err = domaineventpubsub.Publish(exportTopic, event.EventID, msg)
-	if err != nil {
-		return err
-	}
-	return nil
-}
+// func (event ExportEvent) Publish() (err error) {
+// 	msg, err := event.toMessage()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	err = domaineventpubsub.Publish(exportTopic, event.EventID, msg)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
 
-func (event ExportEvent) toMessage() (msg *message.Message, err error) {
-	b, err := json.Marshal(event)
-	if err != nil {
-		return nil, err
-	}
-	msg = message.NewMessage(watermill.NewUUID(), b)
-	return msg, nil
-}
+// func (event ExportEvent) toMessage() (msg *message.Message, err error) {
+// 	b, err := json.Marshal(event)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	msg = message.NewMessage(watermill.NewUUID(), b)
+// 	return msg, nil
+// }
 
-func RegisterCallback(callBackFns ...CallBackFnV2) (err error) {
-	consumers := make([]domaineventpubsub.Consumer, 0)
-	for _, callBackFn := range callBackFns {
-		if callBackFn == nil {
-			continue
-		}
-		workFn := func(event ExportEvent) error {
-			return callBackFn(event.FileUrl)
-		}
-		consumers = append(consumers, domaineventpubsub.Consumer{
-			Description: "导出任务完成事件",
-			Topic:       exportTopic,
-			RouteKey:    ExportEvent_EventID_finished,
-			WorkFn:      domaineventpubsub.MakeWorkFn(workFn),
-		})
-	}
+// func RegisterCallback(callBackFns ...CallBackFnV2) (err error) {
+// 	consumers := make([]domaineventpubsub.Consumer, 0)
+// 	for _, callBackFn := range callBackFns {
+// 		if callBackFn == nil {
+// 			continue
+// 		}
+// 		workFn := func(event ExportEvent) error {
+// 			return callBackFn(event.FileUrl)
+// 		}
+// 		consumers = append(consumers, domaineventpubsub.Consumer{
+// 			Description: "导出任务完成事件",
+// 			Topic:       exportTopic,
+// 			RouteKey:    ExportEvent_EventID_finished,
+// 			WorkFn:      domaineventpubsub.MakeWorkFn(workFn),
+// 		})
+// 	}
 
-	err = domaineventpubsub.RegisterConsumer(consumers...)
-	if err != nil {
-		return err
-	}
-	return nil
-}
+// 	err = domaineventpubsub.RegisterConsumer(consumers...)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
 
 const (
 	ExportEvent_EventID_finished = "finished" //导出完成事件ID

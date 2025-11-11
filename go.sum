@@ -170,8 +170,6 @@ github.com/suifengpiao14/cache v0.0.10 h1:ozDpnJXyA7i8MjQhzpE+wR9u1Ez5hH1ECZ0eLv
 github.com/suifengpiao14/cache v0.0.10/go.mod h1:v6E8vnKaP9f423WMj+ouH/SLzlseTQvjyAEDj0EXI3Y=
 github.com/suifengpiao14/commonlanguage v0.0.21 h1:me4tebAPpv4iHfwZNivgZ1jCljlGCfHk0H++fL1i9/Q=
 github.com/suifengpiao14/commonlanguage v0.0.21/go.mod h1:N57yJGgInOFRx427VnqAvPVvAsPS6KFFxHyV4tyJmCk=
-github.com/suifengpiao14/domaineventpubsub v0.0.0-20251110034535-c12dbfae1a88 h1:Hc3JSCtobx+yl+s/B1s+YFOFUWbe8vbEy3APYkXWZk0=
-github.com/suifengpiao14/domaineventpubsub v0.0.0-20251110034535-c12dbfae1a88/go.mod h1:pfAvQTZX4ON7CJ5DIx6OOWQOL4uZJ/TgM13URny2jNc=
 github.com/suifengpiao14/funcs v0.0.25 h1:6WIUtCdNJbAv2MAvTx7v+q4xvaeQH1HpnTykkMEwJ9U=
 github.com/suifengpiao14/funcs v0.0.25/go.mod h1:g95inzlUrS2Vtyvv5SjVFOnOeX7ZBPWwyKuEMMW+g7U=
 github.com/suifengpiao14/gjsonmodifier v0.2.3 h1:f0fkXk83/wT+Nch9VAH5jFnKQaFB3EC4AdnYnVGZ9bY=
