@@ -307,9 +307,10 @@ const (
 
 type MakeExportApiInArgs struct {
 	Async     bool     `json:"async"`     //是否异步执行，默认同步
+	CreatorId string   `json:"creatorId"` //创建者ID，例如：1
 	ConfigKey string   `json:"configKey"` //配置键，例如：user_list
 	Request   Request  `json:"request"`   //请求数据参数
-	Response  Response `json:"-"`         //响应数据参数,只用于收集中间件,不对外开放
+	response  Response `json:"-"`         //响应数据参数,只用于收集中间件,不对外开放
 }
 
 type Request struct {
@@ -336,15 +337,7 @@ type TableConfig struct {
 }
 
 // MakeExportApiIn 生成导出配置信息
-func MakeExportApiIn(in MakeExportApiInArgs, configTable sqlbuilder.TableConfig) (exportApiIn ExportApiIn, err error) {
-	exportConfigRepository := repository.NewExportConfigRepository(configTable)
-	getIn := repository.ExportConfigRepositoryGetIn{
-		ConfigKey: in.ConfigKey,
-	}
-	config, err := exportConfigRepository.GetMust(getIn)
-	if err != nil {
-		return exportApiIn, err
-	}
+func MakeExportApiIn(in MakeExportApiInArgs, config repository.ExportConfigModel) (exportApiIn ExportApiIn, err error) {
 	var requestBody any
 	if in.Request.Body != nil {
 		err = json.Unmarshal(in.Request.Body, &requestBody)
@@ -353,7 +346,12 @@ func MakeExportApiIn(in MakeExportApiInArgs, configTable sqlbuilder.TableConfig)
 		}
 	}
 
-	filename, err := config.ParseFilename(requestBody)
+	data := map[string]any{
+		"creatorId": in.CreatorId,
+		"body":      string(in.Request.Body),
+	}
+
+	filename, err := config.ParseFilename(data, requestBody)
 	if err != nil {
 		return exportApiIn, err
 	}
@@ -375,11 +373,8 @@ func MakeExportApiIn(in MakeExportApiInArgs, configTable sqlbuilder.TableConfig)
 		return exportApiIn, err
 	}
 	in.Request.RequestFormatFn = dynamicFn.RequestFormatFn
-	in.Response.RecordFormatFn = dynamicFn.RecordFormatFn
+	in.response.RecordFormatFn = dynamicFn.RecordFormatFn
 
-	data := map[string]any{
-		"body": string(in.Request.Body),
-	}
 	reqDTO, err := config.RenderRequestDTO(data, requestBody)
 	if err != nil {
 		return exportApiIn, err
@@ -403,8 +398,8 @@ func MakeExportApiIn(in MakeExportApiInArgs, configTable sqlbuilder.TableConfig)
 			DataPath:         config.DataPath,
 			BusinessCodePath: config.BusinessCodePath,
 			BusinessOkCode:   config.BusinessOkCode,
-			MiddlewareFuncs:  in.Response.MiddlewareFuncs,
-			RecordFormatFn:   in.Response.RecordFormatFn,
+			MiddlewareFuncs:  in.response.MiddlewareFuncs,
+			RecordFormatFn:   in.response.RecordFormatFn,
 		}, //响应数据参数
 		Settings: Settings{
 			Filename:        filename,

@@ -8,6 +8,7 @@ import (
 
 var Export_callback_config_table = sqlbuilder.NewTableConfig("t_export_callback_config").AddColumns(
 	sqlbuilder.NewColumn("Fid", sqlbuilder.GetField(NewId)),
+	sqlbuilder.NewColumn("Fconfig_key", sqlbuilder.GetField(NewConfigKey)),
 	sqlbuilder.NewColumn("Fexport_config_key", sqlbuilder.GetField(NewExportConfigKey)),
 	sqlbuilder.NewColumn("Fproxy_request_tpl", sqlbuilder.GetField(NewProxyRequestTpl)),
 	sqlbuilder.NewColumn("Fdynamic_script", sqlbuilder.GetField(NewDynamicScript)),
@@ -29,6 +30,7 @@ var Export_callback_config_table = sqlbuilder.NewTableConfig("t_export_callback_
 
 type ExportCallbackConfig struct {
 	Id               int    `gorm:"column:id"  json:"id"`
+	ConfigKey        string `gorm:"column:configKey" json:"configKey"`
 	ExportConfigKey  string `gorm:"column:exportConfigKey"  json:"exportConfigKey"`
 	ProxyRequestTpl  string `gorm:"column:proxyRequestTpl" json:"proxyRequestTpl"`
 	DynamicScript    string `gorm:"column:dynamicScript" json:"dynamicScript"`
@@ -41,7 +43,7 @@ type ExportCallbackConfig struct {
 func (m ExportCallbackConfig) RenderRequestDTO(context ...any) (rDTO *httpraw.RequestDTO, err error) {
 	rDTO, err = httpraw.RenderRequestDTO(m.ProxyRequestTpl, context...)
 	if err != nil {
-		err = errors.WithMessagef(err, "ExportConfigModel.RenderRequestDTO")
+		err = errors.WithMessagef(err, "ExportCallbackConfig.RenderRequestDTO")
 		return nil, err
 	}
 	return rDTO, nil
@@ -66,16 +68,39 @@ func NewExportCallbackConfigRepository(tableConfig sqlbuilder.TableConfig) Expor
 	}
 	return s
 }
-
-func (s ExportCallbackConfigRepository) GetByExportConfigKey(configKeys ...string) (models ExportCallbackConfigs, err error) {
-	fs := sqlbuilder.Fields{}
-	for _, configKey := range configKeys {
-		f := NewConfigKey(configKey).AppendValueFn(sqlbuilder.ValueFnEmpty2Nil).AppendWhereFn(sqlbuilder.ValueFnFindInSet)
-		fs = fs.Add(f)
+func (s ExportCallbackConfigRepository) GetByConfigKey(configKey string) (model ExportCallbackConfig, err error) {
+	fs := sqlbuilder.Fields{
+		NewConfigKey(configKey).SetRequired(true).AppendWhereFn(sqlbuilder.ValueFnForward).SetDelayApply(func(f *sqlbuilder.Field, fs ...*sqlbuilder.Field) {
+			columns := f.GetTable().Columns.DbNameWithAlias().AsAny()
+			f.SetSelectColumns(columns...)
+		}),
 	}
-	err = s.table.Repository().All(&models, fs)
+	err = s.table.Repository().FirstMustExists(&model, fs)
 	if err != nil {
-		return nil, err
+		return model, err
 	}
-	return models, nil
+	return model, nil
 }
+
+// func (s ExportCallbackConfigRepository) GetByExportConfigKey(configKeys ...string) (models ExportCallbackConfigs, err error) {
+// 	fs := sqlbuilder.Fields{}
+// 	for i := range configKeys {
+// 		configKey := configKeys[i]
+// 		f := NewExportConfigKey(configKey).AppendValueFn(sqlbuilder.ValueFnEmpty2Nil).AppendWhereFn(sqlbuilder.ValueFnFindInSet)
+// 		if i == 0 {
+// 			f.SetDelayApply(func(f *sqlbuilder.Field, fs ...*sqlbuilder.Field) {
+// 				columns := f.GetTable().Columns.DbNameWithAlias().AsAny()
+// 				f.SetSelectColumns(columns...)
+// 			})
+// 		}
+// 		fs = fs.Add(f)
+// 	}
+// 	if len(fs) == 0 {
+// 		return nil, errors.Errorf("configKeys is empty")
+// 	}
+// 	err = s.table.Repository().All(&models, fs)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return models, nil
+// }

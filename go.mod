@@ -15,8 +15,9 @@ require (
 	github.com/suifengpiao14/apihttpprotocol v0.0.16
 	github.com/suifengpiao14/commonlanguage v0.0.21
 	github.com/suifengpiao14/domaineventpubsub v0.0.0-20251110034535-c12dbfae1a88
-	github.com/suifengpiao14/httpraw v0.0.20
-	github.com/suifengpiao14/sqlbuilder v0.2.33
+	github.com/suifengpiao14/httpraw v0.0.21
+	github.com/suifengpiao14/memorytable v0.1.5
+	github.com/suifengpiao14/sqlbuilder v0.2.34
 	github.com/suifengpiao14/yaegijson v0.0.5
 	github.com/tidwall/gjson v1.18.0
 	github.com/tidwall/sjson v1.2.5
@@ -70,7 +71,6 @@ require (
 	github.com/suifengpiao14/cache v0.0.10 // indirect
 	github.com/suifengpiao14/funcs v0.0.25 // indirect
 	github.com/suifengpiao14/gjsonmodifier v0.2.3 // indirect
-	github.com/suifengpiao14/memorytable v0.1.5 // indirect
 	github.com/suifengpiao14/sshmysql v0.0.7 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect

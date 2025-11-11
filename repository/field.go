@@ -9,15 +9,15 @@ func NewId(id int) (field *sqlbuilder.Field) {
 	return commonlanguage.NewId(id)
 }
 func NewExportConfigKey(exportConfigKey string) (field *sqlbuilder.Field) {
-	return commonlanguage.NewStringId(exportConfigKey).SetName("exportConfigKey").SetTitle("导出配置键引用,多个逗号分隔")
+	return sqlbuilder.NewStringField(exportConfigKey, "exportConfigKey", "导出配置键引用,多个逗号分隔", 521)
 }
 func NewConfigKey(configKey string) (field *sqlbuilder.Field) {
 	return commonlanguage.NewStringId(configKey).SetName("configKey").SetTitle("配置键")
 }
 
-func NewConfigId(configId string) (field *sqlbuilder.Field) {
-	return sqlbuilder.NewStringField(configId, "configId", "配置ID", 0)
-}
+// func NewConfigId(configId string) (field *sqlbuilder.Field) {
+// 	return sqlbuilder.NewStringField(configId, "configId", "配置ID", 0)
+// }
 
 func NewDependTskId(dependTaskId string) (field *sqlbuilder.Field) {
 	return sqlbuilder.NewStringField(dependTaskId, "dependTaskId", "依赖任务ID", 0)

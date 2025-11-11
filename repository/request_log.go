@@ -12,15 +12,15 @@ import (
 )
 
 const (
-	ReqeustLog_status_init     = "init"
-	ReqeustLog_status_finished = "finished"
-	ReqeustLog_result_success  = "success"
-	ReqeustLog_result_fail     = "success"
+	ReqeustLog_status_init = "init"
+	//ReqeustLog_status_finished = "finished"
+	ReqeustLog_result_success = "success"
+	ReqeustLog_result_fail    = "fail"
 )
 
 var Request_log_table = sqlbuilder.NewTableConfig("t_request_log").AddColumns(
 	sqlbuilder.NewColumn("Fid", sqlbuilder.GetField(NewId)),
-	sqlbuilder.NewColumn("Fconfig_id", sqlbuilder.GetField(NewConfigId)),
+	sqlbuilder.NewColumn("Fconfig_key", sqlbuilder.GetField(NewConfigKey)),
 	sqlbuilder.NewColumn("Fdepend_task_id", sqlbuilder.GetField(NewDependTskId)),
 	sqlbuilder.NewColumn("Frequest_dto", sqlbuilder.GetField(NewRequestDTO)),
 	sqlbuilder.NewColumn("Fcurl", sqlbuilder.GetField(NewCURL)),
@@ -47,18 +47,21 @@ var Request_log_table = sqlbuilder.NewTableConfig("t_request_log").AddColumns(
 
 func SubscribeTaskFinishedEvent() (consumerMaker func(table sqlbuilder.TableConfig) (consumer sqlbuilder.Consumer)) {
 	return func(table sqlbuilder.TableConfig) (consumer sqlbuilder.Consumer) {
-		publishTable := Export_export_task_table
+		publishTable, err := table.GetTopicTable(Export_export_task_table)
+		if err != nil {
+			panic(err)
+		}
 		return sqlbuilder.MakeIdentityEventSubscriber(publishTable, func(model ExportTaskModel) (err error) {
 			//如果状态为成功，则发起callback请求
 			switch model.Status {
 			case Task_status_success:
-				requestService := NewRequestLogRepository(Request_log_table)
+				requestService := NewRequestLogRepository(table)
 				taskId := cast.ToString(model.Id)
 				requests, err := requestService.GetByDependTaskId(taskId)
 				if err != nil {
 					return err
 				}
-				taskService := NewExportTaskRepository(Export_export_task_table)
+				taskService := NewExportTaskRepository(publishTable)
 				for _, request := range requests {
 					reqDTO, err := request.ParseReqeuestDTO()
 					if err != nil {
@@ -195,13 +198,18 @@ func NewRequestLogRepository(table sqlbuilder.TableConfig) (repository *RequestL
 		panic(err)
 	}
 	table = table.WithConsumerMakers(SubscribeTaskFinishedEvent())
+	err = table.Init() //启动消费者
+	if err != nil {
+		panic(err)
+	}
 	return &RequestLogRepository{
 		table: table,
 	}
 }
 
 type RequestLogRepositoryInsertIn struct {
-	ConfigId         string `gorm:"column:configId"  json:"configId"`
+	DependTskId      string `gorm:"column:dependTaskId"  json:"dependTaskId"`
+	ConfigKey        string `gorm:"column:configKey"  json:"configKey"`
 	RequestDTO       string `gorm:"column:requestDTO"  json:"requestDTO"`
 	BusinessCodePath string `gorm:"column:businessCodePath"  json:"businessCodePath"`
 	BusinessOkCode   string `gorm:"column:businessOkCode"  json:"businessOkCode"`
@@ -210,10 +218,13 @@ type RequestLogRepositoryInsertIn struct {
 
 func (in RequestLogRepositoryInsertIn) Fields() sqlbuilder.Fields {
 	return sqlbuilder.Fields{
-		NewConfigId(in.ConfigId),
-		NewRequestDTO(in.RequestDTO),
+		NewDependTskId(in.DependTskId).SetRequired(true),
+		NewConfigKey(in.ConfigKey).SetRequired(true),
+		NewRequestDTO(in.RequestDTO).SetRequired(true),
 		NewBusinessCodePath(in.BusinessCodePath),
 		NewBusinessOkCode(in.BusinessOkCode),
+		NewCURL(in.CURL),
+		NewStatus(ReqeustLog_status_init),
 	}
 }
 
@@ -252,7 +263,10 @@ func (r *RequestLogRepository) UpdateResponse(in RequestLogRepositoryUpdateRespo
 
 func (r *RequestLogRepository) GetByDependTaskId(dependTskId string) (logs RequestLogs, err error) {
 	fs := sqlbuilder.Fields{
-		NewDependTskId(dependTskId).SetRequired(true).AppendWhereFn(sqlbuilder.ValueFnFindInSet),
+		NewDependTskId(dependTskId).SetRequired(true).AppendWhereFn(sqlbuilder.ValueFnFindInSet).SetDelayApply(func(f *sqlbuilder.Field, fs ...*sqlbuilder.Field) {
+			columns := f.GetTable().Columns.DbNameWithAlias().AsAny()
+			f.SetSelectColumns(columns...)
+		}),
 		NewStatus(ReqeustLog_status_init).AppendWhereFn(sqlbuilder.ValueFnForward),
 	}
 	err = r.table.Repository().All(&logs, fs)

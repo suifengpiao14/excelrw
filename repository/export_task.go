@@ -2,6 +2,7 @@ package repository
 
 import (
 	"github.com/spf13/cast"
+	"github.com/suifengpiao14/memorytable"
 	"github.com/suifengpiao14/sqlbuilder"
 )
 
@@ -43,11 +44,12 @@ var Export_export_task_table = sqlbuilder.NewTableConfig("t_export_task").AddCol
 	sqlbuilder.NewColumn("md5", sqlbuilder.GetField(NewMD5)),
 	sqlbuilder.NewColumn("status", sqlbuilder.GetField(NewStatus)),
 	sqlbuilder.NewColumn("timeout", sqlbuilder.GetField(NewTimeout)),
+	sqlbuilder.NewColumn("size", sqlbuilder.GetField(NewSize)),
 	sqlbuilder.NewColumn("url", sqlbuilder.GetField(NewUrl)),
 	sqlbuilder.NewColumn("remark", sqlbuilder.GetField(NewRemark)),
 	sqlbuilder.NewColumn("expired_at", sqlbuilder.GetField(NewExpiredAt)),
-	sqlbuilder.NewColumn("Fcreated_at", sqlbuilder.GetField(NewCreatedAt)),
-	sqlbuilder.NewColumn("Fupdated_at", sqlbuilder.GetField(NewUpdatedAt)),
+	sqlbuilder.NewColumn("created_at", sqlbuilder.GetField(NewCreatedAt)),
+	sqlbuilder.NewColumn("updated_at", sqlbuilder.GetField(NewUpdatedAt)),
 ).AddIndexs(
 	sqlbuilder.Index{
 		Unique: true,
@@ -88,7 +90,17 @@ func (ms ExportTaskModels) GetConfigKeys() (configKeys []string) {
 	for _, m := range ms {
 		configKeys = append(configKeys, m.ConfigKey)
 	}
+	configKeys = memorytable.NewTable(configKeys...).Uniqueue(func(row string) (key string) {
+		return row
+	})
 	return configKeys
+}
+
+func (ms ExportTaskModels) GetIds() (ids []string) {
+	for _, m := range ms {
+		ids = append(ids, cast.ToString(m.Id))
+	}
+	return ids
 }
 
 func (ms ExportTaskModels) IsAllSuccessed() bool {
@@ -111,7 +123,8 @@ func NewExportTaskRepository(table sqlbuilder.TableConfig) *ExportTaskRepository
 }
 
 type ExportTaskRepositoryAddIn struct {
-	AppId     string `json:"app_id"`
+	ConfigKey string `json:"configKey"`
+	AppId     string `json:"appId"`
 	CreatorId string `json:"creatorId"`
 	Filename  string `json:"filename"`
 	MD5       string `json:"md5"`
@@ -124,6 +137,7 @@ type ExportTaskRepositoryAddIn struct {
 
 func (in ExportTaskRepositoryAddIn) Fields() sqlbuilder.Fields {
 	return sqlbuilder.Fields{
+		NewConfigKey(in.ConfigKey).SetRequired(true),
 		NewAppId(in.AppId).SetRequired(true),
 		NewCreatorId(in.CreatorId).SetRequired(true),
 		NewFilename(in.Filename).SetRequired(true),
@@ -144,8 +158,20 @@ func (s ExportTaskRepository) Add(in ExportTaskRepositoryAddIn) (id uint64, err 
 	return id, nil
 }
 
+func (s ExportTaskRepository) GetByMd5(md5 string) (model ExportTaskModel, exitst bool, err error) {
+	fs := sqlbuilder.Fields{
+		NewMD5(md5).SetRequired(true).AppendWhereFn(sqlbuilder.ValueFnForward),
+	}
+	exitst, err = s.table.Repository().First(&model, fs)
+	if err != nil {
+		return model, exitst, err
+	}
+	return model, exitst, nil
+}
+
 type ExportTaskRepositoryUpdateStatusIn struct {
 	Id     int    `json:"id"`
+	Size   int    `json:"size"`
 	Status string `json:"status"`
 	Remark string `json:"remark"`
 }
@@ -154,6 +180,7 @@ func (in ExportTaskRepositoryUpdateStatusIn) Fields() sqlbuilder.Fields {
 	return sqlbuilder.Fields{
 		NewId(in.Id).SetRequired(true).AppendWhereFn(sqlbuilder.ValueFnForward),
 		NewStatus(in.Status).SetRequired(true),
+		NewSize(in.Size),
 		NewRemark(in.Remark),
 	}
 }
@@ -177,9 +204,17 @@ func (s ExportTaskRepository) UpdateStatus(in ExportTaskRepositoryUpdateStatusIn
 	if err != nil {
 		return err
 	}
+	err = s.PublishEvent(cast.ToString(in.Id))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s ExportTaskRepository) PublishEvent(id string) (err error) {
 	event := sqlbuilder.IdentityEvent{
 		Operation:         ChangeStatus_EventId,
-		IdentityValue:     cast.ToString(in.Id),
+		IdentityValue:     cast.ToString(id),
 		IdentityFieldName: sqlbuilder.GetFieldName(NewId),
 	}
 	err = s.table.Publish(event)
@@ -210,6 +245,9 @@ func (s ExportTaskRepository) GetByFilename(filenames ...string) (models ExportT
 			f.ValueFns.ResetSetValueFn(func(inputValue any, f *sqlbuilder.Field, fs ...*sqlbuilder.Field) (any, error) {
 				return filenames, nil
 			})
+		}).SetDelayApply(func(f *sqlbuilder.Field, fs ...*sqlbuilder.Field) {
+			selectCoumns := f.GetTable().Columns.DbNameWithAlias().AsAny()
+			f.SetSelectColumns(selectCoumns...)
 		}),
 	}
 	err = s.table.Repository().All(&models, fs)

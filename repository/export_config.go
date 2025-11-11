@@ -28,6 +28,7 @@ var IdIndex = sqlbuilder.Index{
 }
 
 var Export_config_table = sqlbuilder.NewTableConfig("t_export_config").AddColumns(
+	sqlbuilder.NewColumn("Fapp_id", sqlbuilder.GetField(NewAppId)),
 	sqlbuilder.NewColumn("Fconfig_key", sqlbuilder.GetField(NewConfigKey)),
 	sqlbuilder.NewColumn("Fproxy_request_tpl", sqlbuilder.GetField(NewProxyRequestTpl)),
 	sqlbuilder.NewColumn("Fpage_index_path", sqlbuilder.GetField(NewPageIndexPath)),
@@ -74,6 +75,7 @@ func NewExportConfigRepository(tableConfig sqlbuilder.TableConfig) ExportConfigR
 
 // ExportConfigModel 导出配置模型结构体，用于解析配置信息,这里gorm:"column:xxx"是固定不变的(查询语句会使用别名转换字段),后续使用 sql.DB，xorm 也可以增加对应的固定tag
 type ExportConfigModel struct {
+	AppId             string `gorm:"column:appId" xorm:"'appId'" db:"appId" json:"appId"`                                                 // 应用ID
 	ConfigKey         string `gorm:"column:configKey" xorm:"'configKey'" db:"configKey" json:"configKey"`                                 // 配置键
 	ProxyRequestTpl   string `gorm:"column:proxyRequestTpl" xorm:"'proxyRequestTpl'" db:"proxyRequestTpl" json:"proxyRequestTpl"`         // 代理获取数据请求模板，例如：{{.Url}}?pageIndex={{.PageIndex}}
 	ReqeustPagination string `gorm:"column:reqeustPagination" xorm:"'reqeustPagination'" db:"reqeustPagination" json:"reqeustPagination"` // 请求分页参数，例如：pageIndex,pageSize
