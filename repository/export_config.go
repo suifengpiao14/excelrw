@@ -1,8 +1,6 @@
 package repository
 
 import (
-	"bytes"
-	"encoding/json"
 	"time"
 
 	"github.com/cbroglie/mustache"
@@ -244,23 +242,12 @@ func (m ExportConfigModel) ParseDynamicScript() (dynamicFn DynamicFn, err error)
 	return dynamicFn, nil
 }
 
-func (m ExportConfigModel) ParseRequest(context ...any) (rDTO *httpraw.RequestDTO, err error) {
-	if m.ProxyRequestTpl == "" {
-		err = errors.Errorf(`ExportConfigModel.ProxyRequestTpl required ,ConfigKey:%s`, m.ConfigKey)
-		return nil, err
-	}
-	httpTpl := httpraw.HttpTpl(m.ProxyRequestTpl)
-	rDTO, err = httpTpl.RequestTDO(context...)
+func (m ExportConfigModel) RenderRequestDTO(context ...any) (rDTO *httpraw.RequestDTO, err error) {
+	rDTO, err = httpraw.RenderRequestDTO(m.ProxyRequestTpl, context...)
 	if err != nil {
+		err = errors.WithMessagef(err, "ExportConfigModel.RenderRequestDTO")
 		return nil, err
 	}
-	var w bytes.Buffer
-	err = json.Compact(&w, []byte(rDTO.Body))
-	if err != nil {
-		err = errors.WithMessagef(err, `json.Compact(%s)`, rDTO.Body)
-		return nil, err
-	}
-	rDTO.Body = w.String()
 	return rDTO, nil
 }
 

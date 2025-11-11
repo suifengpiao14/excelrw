@@ -12,7 +12,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cast v1.10.0
 	github.com/stretchr/testify v1.11.0
-	github.com/suifengpiao14/apihttpprotocol v0.0.15
+	github.com/suifengpiao14/apihttpprotocol v0.0.16
 	github.com/suifengpiao14/commonlanguage v0.0.21
 	github.com/suifengpiao14/domaineventpubsub v0.0.0-20251110034535-c12dbfae1a88
 	github.com/suifengpiao14/httpraw v0.0.20

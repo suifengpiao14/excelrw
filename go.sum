@@ -164,14 +164,12 @@ github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXl
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
 github.com/stretchr/testify v1.11.0 h1:ib4sjIrwZKxE5u/Japgo/7SJV3PvgjGiRNAvTVGqQl8=
 github.com/stretchr/testify v1.11.0/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
-github.com/suifengpiao14/apihttpprotocol v0.0.15 h1:cUCXoS36kXt1ReNrMDdAtSOCYyQhX2SadQd5VerPA/4=
-github.com/suifengpiao14/apihttpprotocol v0.0.15/go.mod h1:wUHWqJccnIFSYquai7P3eBgfKKUdrxW3/zhdDOrKY7k=
+github.com/suifengpiao14/apihttpprotocol v0.0.16 h1:yAFnV7+YRGOsaloqetKOFg7ORo0KV6nXrtwTNsIhJd4=
+github.com/suifengpiao14/apihttpprotocol v0.0.16/go.mod h1:iT+J6rRBiUW/MJCiVTG6qozu8zPmLfvEmwDLg88zA0k=
 github.com/suifengpiao14/cache v0.0.10 h1:ozDpnJXyA7i8MjQhzpE+wR9u1Ez5hH1ECZ0eLvYs/f0=
 github.com/suifengpiao14/cache v0.0.10/go.mod h1:v6E8vnKaP9f423WMj+ouH/SLzlseTQvjyAEDj0EXI3Y=
 github.com/suifengpiao14/commonlanguage v0.0.21 h1:me4tebAPpv4iHfwZNivgZ1jCljlGCfHk0H++fL1i9/Q=
 github.com/suifengpiao14/commonlanguage v0.0.21/go.mod h1:N57yJGgInOFRx427VnqAvPVvAsPS6KFFxHyV4tyJmCk=
-github.com/suifengpiao14/domaineventpubsub v0.0.0-20251110024824-da0c10a8fe30 h1:1eeg7rhBvly2BhdEeryB/SU4MmYSq3WI/InkstTwhqY=
-github.com/suifengpiao14/domaineventpubsub v0.0.0-20251110024824-da0c10a8fe30/go.mod h1:pfAvQTZX4ON7CJ5DIx6OOWQOL4uZJ/TgM13URny2jNc=
 github.com/suifengpiao14/domaineventpubsub v0.0.0-20251110034535-c12dbfae1a88 h1:Hc3JSCtobx+yl+s/B1s+YFOFUWbe8vbEy3APYkXWZk0=
 github.com/suifengpiao14/domaineventpubsub v0.0.0-20251110034535-c12dbfae1a88/go.mod h1:pfAvQTZX4ON7CJ5DIx6OOWQOL4uZJ/TgM13URny2jNc=
 github.com/suifengpiao14/funcs v0.0.25 h1:6WIUtCdNJbAv2MAvTx7v+q4xvaeQH1HpnTykkMEwJ9U=

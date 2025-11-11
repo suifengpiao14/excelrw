@@ -380,7 +380,7 @@ func MakeExportApiIn(in MakeExportApiInArgs, configTable sqlbuilder.TableConfig)
 	data := map[string]any{
 		"body": string(in.Request.Body),
 	}
-	reqDTO, err := config.ParseRequest(data, requestBody)
+	reqDTO, err := config.RenderRequestDTO(data, requestBody)
 	if err != nil {
 		return exportApiIn, err
 	}
@@ -427,18 +427,4 @@ func MakeExportApiIn(in MakeExportApiInArgs, configTable sqlbuilder.TableConfig)
 		},
 	}
 	return exportApiIn, nil
-}
-
-const (
-	Task_status_success   = "success"
-	Task_status_failed    = "fail"
-	Task_status_exporting = "exporting"
-)
-
-func CreateExportTask(in ExportApiIn) (id uint64, err error) {
-	return 0, nil
-}
-
-func UpdateTaskStatus(taskId uint64, result string, remark string) (err error) {
-	return nil
 }

@@ -36,6 +36,7 @@ CREATE TABLE `export_task` (
 */
 var Export_export_task_table = sqlbuilder.NewTableConfig("t_export_task").AddColumns(
 	sqlbuilder.NewColumn("id", sqlbuilder.GetField(NewId)),
+	sqlbuilder.NewColumn("config_key", sqlbuilder.GetField(NewConfigKey)),
 	sqlbuilder.NewColumn("app_id", sqlbuilder.GetField(NewAppId)),
 	sqlbuilder.NewColumn("creator_id", sqlbuilder.GetField(NewCreatorId)),
 	sqlbuilder.NewColumn("filename", sqlbuilder.GetField(NewFilename)),
@@ -59,8 +60,15 @@ var Export_export_task_table = sqlbuilder.NewTableConfig("t_export_task").AddCol
 	},
 )
 
+const (
+	Task_status_success   = "success"
+	Task_status_failed    = "fail"
+	Task_status_exporting = "exporting"
+)
+
 type ExportTaskModel struct {
 	Id        int    `gorm:"column:id"  json:"id"`
+	ConfigKey string `gorm:"column:configKey"  json:"configKey"`
 	AppId     string `gorm:"column:appId"  json:"appId"`
 	CreatorId string `gorm:"column:creatorId"  json:"creatorId"`
 	Filename  string `gorm:"column:filename"  json:"filename"`
@@ -75,6 +83,22 @@ type ExportTaskModel struct {
 }
 
 type ExportTaskModels []ExportTaskModel
+
+func (ms ExportTaskModels) GetConfigKeys() (configKeys []string) {
+	for _, m := range ms {
+		configKeys = append(configKeys, m.ConfigKey)
+	}
+	return configKeys
+}
+
+func (ms ExportTaskModels) IsAllSuccessed() bool {
+	for _, m := range ms {
+		if m.Status != Task_status_success {
+			return false
+		}
+	}
+	return true
+}
 
 type ExportTaskRepository struct {
 	table sqlbuilder.TableConfig
@@ -163,4 +187,34 @@ func (s ExportTaskRepository) UpdateStatus(in ExportTaskRepositoryUpdateStatusIn
 		return err
 	}
 	return nil
+}
+
+func (s ExportTaskRepository) GetByIds(ids ...string) (models ExportTaskModels, err error) {
+	fs := sqlbuilder.Fields{
+		NewId(0).SetRequired(true).AppendWhereFn(sqlbuilder.ValueFnForward).Apply(func(f *sqlbuilder.Field, fs ...*sqlbuilder.Field) {
+			f.ValueFns.ResetSetValueFn(func(inputValue any, f *sqlbuilder.Field, fs ...*sqlbuilder.Field) (any, error) {
+				return ids, nil
+			})
+		}),
+	}
+	err = s.table.Repository().All(&models, fs)
+	if err != nil {
+		return nil, err
+	}
+	return models, nil
+}
+
+func (s ExportTaskRepository) GetByFilename(filenames ...string) (models ExportTaskModels, err error) {
+	fs := sqlbuilder.Fields{
+		NewFilename("").SetRequired(true).AppendWhereFn(sqlbuilder.ValueFnForward).Apply(func(f *sqlbuilder.Field, fs ...*sqlbuilder.Field) {
+			f.ValueFns.ResetSetValueFn(func(inputValue any, f *sqlbuilder.Field, fs ...*sqlbuilder.Field) (any, error) {
+				return filenames, nil
+			})
+		}),
+	}
+	err = s.table.Repository().All(&models, fs)
+	if err != nil {
+		return nil, err
+	}
+	return models, nil
 }
