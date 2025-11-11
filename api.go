@@ -185,8 +185,9 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 		var resp json.RawMessage
 		newBody := json.RawMessage([]byte(requestDTO.Body))
 		err = client.Do(newBody, &resp)
+		curlCommand := client.Request().CurlCommand()
 		if err != nil {
-			err = errors.WithMessagef(err, "curl:%s", client.Request().CurlCommand())
+			err = errors.WithMessagef(err, "curl:%s", curlCommand)
 			return nil, err
 		}
 		if in.ProxyResponse.BusinessCodePath != "" {
@@ -197,6 +198,7 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 					ActualBusinessCode:   businessCode,
 					Url:                  proxyReq.Url,
 					Response:             string(resp),
+					CurlCommand:          curlCommand,
 				}
 				return nil, err
 			}
@@ -239,6 +241,7 @@ type ProxyResponseError struct {
 	ActualBusinessCode   string `json:"actualBusinessCode"`
 	Url                  string `json:"url"`
 	Response             string `json:"response"`
+	CurlCommand          string `json:"curlCommand"`
 }
 
 func (p ProxyResponseError) Error() string {
@@ -412,19 +415,6 @@ func MakeExportApiIn(in MakeExportApiInArgs, config repository.ExportConfigModel
 			Interval:        tnterval,
 			DeleteFileDelay: deleteFileDelay,
 		}, //配置信息
-		// CallBackFns: []CallBackFnV2{
-		// 	func(fileUrl string) (err error) {
-		// 		event := ExportEvent{
-		// 			EventID: ExportEvent_EventID_finished,
-		// 			FileUrl: fileUrl,
-		// 		}
-		// 		err = event.Publish()
-		// 		if err != nil {
-		// 			return err
-		// 		}
-		// 		return nil
-		// 	},
-		// },
 	}
 	return exportApiIn, nil
 }
