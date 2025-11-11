@@ -295,10 +295,10 @@ type Settings struct {
 }
 
 type ExportApiIn struct {
-	ProxyRquest   ProxyRquest    `json:"proxyRequest" validate:"required"`  //请求数据参数
-	ProxyResponse ProxyResponse  `json:"proxyResponse" validate:"required"` //响应数据参数
-	Settings      Settings       `json:"settings" validate:"required"`      //配置信息
-	CallBackFns   []CallBackFnV2 `json:"-"`                                 //回调函数列表，例如：func(fileUrl string)(err error){ return nil}
+	ProxyRquest   ProxyRquest   `json:"proxyRequest" validate:"required"`  //请求数据参数
+	ProxyResponse ProxyResponse `json:"proxyResponse" validate:"required"` //响应数据参数
+	Settings      Settings      `json:"settings" validate:"required"`      //配置信息
+	//CallBackFns   []CallBackFnV2 `json:"-"`                                 //回调函数列表，例如：func(fileUrl string)(err error){ return nil}
 }
 
 const (
@@ -334,6 +334,13 @@ type TableConfig struct {
 	ConfigCallbackTable sqlbuilder.TableConfig
 	TaskTable           sqlbuilder.TableConfig
 	CallbacTaskTable    sqlbuilder.TableConfig
+}
+
+func init() {
+	httpraw.NonstandardHeaderKeyMap = map[string]string{
+		"Hsb-Openapi-Callerserviceid": "HSB-OPENAPI-CALLERSERVICEID",
+		"Hsb-Openapi-Signature":       "HSB-OPENAPI-SIGNATURE",
+	}
 }
 
 // MakeExportApiIn 生成导出配置信息
@@ -407,19 +414,19 @@ func MakeExportApiIn(in MakeExportApiInArgs, config repository.ExportConfigModel
 			Interval:        tnterval,
 			DeleteFileDelay: deleteFileDelay,
 		}, //配置信息
-		CallBackFns: []CallBackFnV2{
-			func(fileUrl string) (err error) {
-				event := ExportEvent{
-					EventID: ExportEvent_EventID_finished,
-					FileUrl: fileUrl,
-				}
-				err = event.Publish()
-				if err != nil {
-					return err
-				}
-				return nil
-			},
-		},
+		// CallBackFns: []CallBackFnV2{
+		// 	func(fileUrl string) (err error) {
+		// 		event := ExportEvent{
+		// 			EventID: ExportEvent_EventID_finished,
+		// 			FileUrl: fileUrl,
+		// 		}
+		// 		err = event.Publish()
+		// 		if err != nil {
+		// 			return err
+		// 		}
+		// 		return nil
+		// 	},
+		// },
 	}
 	return exportApiIn, nil
 }

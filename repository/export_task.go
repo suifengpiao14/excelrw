@@ -230,6 +230,9 @@ func (s ExportTaskRepository) GetByIds(ids ...string) (models ExportTaskModels, 
 			f.ValueFns.ResetSetValueFn(func(inputValue any, f *sqlbuilder.Field, fs ...*sqlbuilder.Field) (any, error) {
 				return ids, nil
 			})
+		}).SetDelayApply(func(f *sqlbuilder.Field, fs ...*sqlbuilder.Field) {
+			columns := f.GetTable().Columns.DbNameWithAlias().AsAny()
+			f.SetSelectColumns(columns...)
 		}),
 	}
 	err = s.table.Repository().All(&models, fs)

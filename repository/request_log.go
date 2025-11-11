@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	ReqeustLog_status_init = "init"
-	//ReqeustLog_status_finished = "finished"
+	ReqeustLog_status_init     = "init"
+	ReqeustLog_status_finished = "finished" // 已完成
+
 	ReqeustLog_result_success = "success"
 	ReqeustLog_result_fail    = "fail"
 )
@@ -250,6 +251,8 @@ func (in RequestLogRepositoryUpdateResponseIn) Fields() sqlbuilder.Fields {
 		NewResponseDTO(in.ResponseDTO).SetRequired(true),
 		NewHttpCode(in.HttpCode).SetRequired(true),
 		NewResult(in.Result).SetRequired(true),
+		NewError(in.Error),
+		NewStatus(ReqeustLog_status_finished),
 	}
 }
 
