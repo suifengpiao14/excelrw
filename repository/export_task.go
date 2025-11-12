@@ -46,6 +46,7 @@ var Export_export_task_table = sqlbuilder.NewTableConfig("t_export_task").AddCol
 	sqlbuilder.NewColumn("timeout", sqlbuilder.GetField(NewTimeout)),
 	sqlbuilder.NewColumn("size", sqlbuilder.GetField(NewSize)),
 	sqlbuilder.NewColumn("url", sqlbuilder.GetField(NewUrl)),
+	sqlbuilder.NewColumn("curl", sqlbuilder.GetField(NewCURL)),
 	sqlbuilder.NewColumn("remark", sqlbuilder.GetField(NewRemark)),
 	sqlbuilder.NewColumn("expired_at", sqlbuilder.GetField(NewExpiredAt)),
 	sqlbuilder.NewColumn("created_at", sqlbuilder.GetField(NewCreatedAt)),
@@ -131,6 +132,7 @@ type ExportTaskRepositoryAddIn struct {
 	Status    string `json:"status"`
 	Timeout   string `json:"timeout"`
 	Url       string `json:"url"`
+	Curl      string `json:"curl"`
 	Remark    string `json:"remark"`
 	ExpiredAt string `json:"expired_at"`
 }
@@ -145,6 +147,7 @@ func (in ExportTaskRepositoryAddIn) Fields() sqlbuilder.Fields {
 		NewStatus(in.Status).SetRequired(true),
 		NewTimeout(in.Timeout),
 		NewUrl(in.Url).SetRequired(true),
+		NewCURL(in.Curl),
 		NewRemark(in.Remark),
 		NewExpiredAt(in.ExpiredAt),
 	}

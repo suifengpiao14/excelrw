@@ -42,6 +42,7 @@ var Export_config_table = sqlbuilder.NewTableConfig("t_export_config").AddColumn
 	sqlbuilder.NewColumn("Ffilename_tpl", sqlbuilder.GetField(NewFilenameTpl)),
 	sqlbuilder.NewColumn("Ffield_metas", sqlbuilder.GetField(NewFieldMetas)),
 	sqlbuilder.NewColumn("Finterval", sqlbuilder.GetField(NewInterval)),
+	//sqlbuilder.NewColumn("Ftask_deal_max_time", sqlbuilder.GetField(NewTaskDealMaxTime)),
 	sqlbuilder.NewColumn("Fdelete_file_delay", sqlbuilder.GetField(NewDeleteFileDelay)),
 ).AddIndexs(
 	sqlbuilder.Index{
@@ -88,9 +89,31 @@ type ExportConfigModel struct {
 	BusinessOkCode    string `gorm:"column:businessOkCode" xorm:"'businessOkCode'" db:"businessOkCode" json:"businessOkCode"`             // 业务成功标识值
 	FilenameTpl       string `gorm:"column:filenameTpl" xorm:"'filenameTpl'" db:"filenameTpl" json:"filenameTpl"`                         // 导出文件全称如 /static/export/{{fielname}}.xlsx
 	FieldMetas        string `gorm:"column:fieldMetas" xorm:"'fieldMetas'" db:"fieldMetas" json:"fieldMetas"`                             // 字段映射信息，例如：[{"name":"id","title":"title"}]
+	TaskDealMaxTime   string `gorm:"column:taskDealMaxTime" xorm:"'taskDealMaxTime'" db:"taskDealMaxTime" json:"taskDealMaxTime"`         // 任务处理最大时间，例如：10s
 	Interval          string `gorm:"column:interval" xorm:"'interval'" db:"interval" json:"interval"`                                     // 间隔时间，例如：10s
 	DeleteFileDelay   string `gorm:"column:deleteFileDelay" xorm:"'deleteFileDelay'" db:"deleteFileDelay" json:"deleteFileDelay"`         // 删除文件延迟时间，例如：10s
 	DynamicScript     string `gorm:"column:dynamicScript" xorm:"'dynamicScript'" db:"dynamicScript" json:"dynamicScript"`                 // 动态脚本
+}
+
+func (m ExportConfigModel) GetTaskDealMaxTime() time.Duration {
+	if m.TaskDealMaxTime == "" {
+		return 30 * time.Minute // 默认30分钟
+	}
+	duration, err := time.ParseDuration(m.TaskDealMaxTime)
+	if err != nil {
+		return 30 * time.Minute // 默认30分钟
+	}
+	return duration
+}
+func (m ExportConfigModel) GetDeleteFileDelay() time.Duration {
+	if m.DeleteFileDelay == "" {
+		return 24 * time.Hour // 默认24小时
+	}
+	duration, err := time.ParseDuration(m.TaskDealMaxTime)
+	if err != nil {
+		return 24 * time.Hour // 默认24小时
+	}
+	return duration
 }
 
 func (m ExportConfigModel) ParseFieldMetas() (fieldMetas defined.FieldMetas, err error) {

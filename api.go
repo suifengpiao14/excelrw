@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"maps"
-	"net/http"
 	"regexp"
 	"time"
 
@@ -95,12 +94,9 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 
 	ctx := context.Background()
 	settings := in.Settings
-	if settings.Interval == 0 {
-		settings.Interval = 100 * time.Millisecond
-	}
 	deleteFileDelay := settings.DeleteFileDelay
 	if deleteFileDelay == 0 {
-		deleteFileDelay = 10 * time.Minute
+		deleteFileDelay = 24 * time.Hour //默认24小时后删除文件
 	}
 	proxyReq := in.ProxyRquest
 	proxyRsp := in.ProxyResponse
@@ -110,7 +106,8 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 	startIndexRaw := ""
 	exp := regexp.MustCompile(`\d+`)
 	_rowNumber := 0
-	bodyDefault := []byte(proxyReq.Body) // body 的pageSize 有可能会被修改，所以在这里赋值
+	requestDTODefault := in.ProxyRquest.RequestDTO
+	bodyDefault := []byte(requestDTODefault.Body) // body 的pageSize 有可能会被修改，所以在这里赋值
 
 	if proxyReq.PageIndexPath != "" {
 		//获取pageIndex文本,在循环内替换
@@ -149,13 +146,7 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 		maxLoopTimes = 1 // 只获取一次数据
 	}
 
-	requestDTODefault := httpraw.RequestDTO{
-		URL:     proxyReq.Url,
-		Method:  proxyReq.Method,
-		Headers: in.ProxyRquest.Headers,
-		Cookies: make([]*http.Cookie, 0),
-		Body:    string(bodyDefault),
-	}
+	requestDTODefault.Body = string(bodyDefault)
 
 	ecw = ecw.WithInterval(settings.Interval).WithDeleteFile(deleteFileDelay, nil).WithMaxLoopCount(maxLoopTimes).WithFetcher(func(loopTimes int) (rows []map[string]string, err error) {
 		pageIndexDelta := loopTimes - 1
@@ -196,7 +187,7 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 				err = ProxyResponseError{
 					ExpattedBusinessCode: in.ProxyResponse.BusinessOkCode,
 					ActualBusinessCode:   businessCode,
-					Url:                  proxyReq.Url,
+					Url:                  requestDTODefault.URL,
 					Response:             string(resp),
 					CurlCommand:          curlCommand,
 				}
@@ -268,10 +259,11 @@ type SimpleExportOut struct {
 */
 
 type ProxyRquest struct {
-	Url             string                                        `json:"url"  validate:"required"`
-	Method          string                                        `json:"method" validate:"required"`
-	Headers         map[string]string                             `json:"headers"`
-	Body            json.RawMessage                               `json:"body" validate:"required"`
+	RequestDTO httpraw.RequestDTO `json:"request"`
+	//Url             string                                        `json:"url"  validate:"required"`
+	//Method          string                                        `json:"method" validate:"required"`
+	//Headers         map[string]string                             `json:"headers"`
+	//Body            json.RawMessage                               `json:"body" validate:"required"`
 	PageIndexPath   string                                        `json:"pageIndexPath"`  //页码参数路径，例如：$.data.pageIndex
 	PageIndexStart  string                                        `json:"pageIndexStart"` //起始页码，例如："0","1"
 	PageSizePath    string                                        `json:"pageSizePath"`   //每页数量参数路径，例如：$.data.pageSize
@@ -391,14 +383,15 @@ func MakeExportApiIn(in MakeExportApiInArgs, config repository.ExportConfigModel
 	maps.Copy(header, in.Request.Headers)
 	exportApiIn = ExportApiIn{
 		ProxyRquest: ProxyRquest{
-			Url:             reqDTO.URL,
-			Method:          reqDTO.Method,
-			PageIndexPath:   config.PageIndexPath,
-			PageIndexStart:  config.PageIndexStart,
-			PageSizePath:    config.PageSizePath,
-			PageSize:        config.PageSize,
-			Body:            json.RawMessage(reqDTO.Body),
-			Headers:         header,
+			RequestDTO: *reqDTO,
+			// Url:             reqDTO.URL,
+			// Method:          reqDTO.Method,
+			PageIndexPath:  config.PageIndexPath,
+			PageIndexStart: config.PageIndexStart,
+			PageSizePath:   config.PageSizePath,
+			PageSize:       config.PageSize,
+			// Body:            json.RawMessage(reqDTO.Body),
+			// Headers:         header,
 			MiddlewareFuncs: in.Request.MiddlewareFuncs,
 			RequestFormatFn: in.Request.RequestFormatFn,
 		}, //请求数据参数

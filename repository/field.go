@@ -136,6 +136,9 @@ func NewFieldMetas(fieldMetas string) (field *sqlbuilder.Field) {
 func NewInterval(interval string) (field *sqlbuilder.Field) {
 	return sqlbuilder.NewStringField(interval, "interval", "间隔时间，例如：10s", 0)
 }
+func NewTaskDealMaxTime(taskDealMaxTime string) (field *sqlbuilder.Field) {
+	return sqlbuilder.NewStringField(taskDealMaxTime, "taskDealMaxTime", "任务处理最大时长，例如：10s", 0)
+}
 
 func NewDeleteFileDelay(deleteFileDelay string) (field *sqlbuilder.Field) {
 	return sqlbuilder.NewStringField(deleteFileDelay, "deleteFileDelay", "删除文件延迟时间，例如：10s", 0)
