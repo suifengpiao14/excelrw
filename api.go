@@ -300,8 +300,9 @@ const (
 
 type MakeExportApiInArgs struct {
 	Async     bool     `json:"async"`     //是否异步执行，默认同步
+	ConfigKey string   `json:"configKey"` //输入配置信息，比如creatorId,filename等,可用于定制化导出文件名等
 	CreatorId string   `json:"creatorId"` //创建者ID，例如：1
-	ConfigKey string   `json:"configKey"` //配置键，例如：user_list
+	Filename  string   `json:"filename"`  //导出文件全称如 /static/export/20231018_1547.xlsx
 	Request   Request  `json:"request"`   //请求数据参数
 	response  Response `json:"-"`         //响应数据参数,只用于收集中间件,不对外开放
 }
@@ -348,6 +349,7 @@ func MakeExportApiIn(in MakeExportApiInArgs, config repository.ExportConfigModel
 
 	data := map[string]any{
 		"creatorId": in.CreatorId,
+		"filename":  in.Filename,
 		"body":      string(in.Request.Body),
 	}
 
