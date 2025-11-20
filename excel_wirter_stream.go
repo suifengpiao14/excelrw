@@ -209,8 +209,8 @@ func (ecw *ExcelStreamWriter) AutoAdjustColumnWidth() (err error) {
 	return nil
 }
 
-// CalFieldMetaMaxSize 计算字段最大长度，用于自动调整列宽
-func (ecw *ExcelStreamWriter) CalFieldMetaMaxSize(rows []map[string]string) {
+// calFieldMetaMaxSize 计算字段最大长度，用于自动调整列宽
+func (ecw *ExcelStreamWriter) calFieldMetaMaxSize(rows []map[string]string) {
 	for i := 0; i < len(ecw.fieldMetas); i++ {
 		key := ecw.fieldMetas[i].Name
 		for _, record := range rows {
@@ -333,7 +333,7 @@ func (ecw *ExcelStreamWriter) Run() (errChan chan error, err error) {
 func (ecw *ExcelStreamWriter) loop() (err error) {
 	loopTimes := 0
 	maxLoopTimes := ecw.gethMaxLoopTimes()
-	defer ecw.save()
+	defer ecw.Save()
 	for {
 		select {
 		case <-ecw.context.Done():
@@ -355,7 +355,7 @@ func (ecw *ExcelStreamWriter) loop() (err error) {
 				data = append([]map[string]string{ecw.getTitleRow()}, data...) //添加到第一行
 			}
 			// 使用第一次数据作为样本(包含标题和实际数据),计算最大列宽
-			ecw.CalFieldMetaMaxSize(data)
+			ecw.calFieldMetaMaxSize(data)
 			// 设置列宽(必须在写入数据之前调用)
 			err = ecw.setColWidth()
 			if err != nil {
@@ -367,7 +367,7 @@ func (ecw *ExcelStreamWriter) loop() (err error) {
 			break
 		}
 
-		ecw.nextRowNumber, err = ecw.writeData(ecw.nextRowNumber, data)
+		ecw.nextRowNumber, err = ecw.WriteData(ecw.nextRowNumber, data)
 		if err != nil {
 			return err
 		}
@@ -391,7 +391,7 @@ func (ecw *ExcelStreamWriter) setColWidth() (err error) {
 	return nil
 }
 
-func (ecw *ExcelStreamWriter) writeData(rowNumber int, rows []map[string]string) (nextRowNumber int, err error) {
+func (ecw *ExcelStreamWriter) WriteData(rowNumber int, rows []map[string]string) (nextRowNumber int, err error) {
 	fieldMetas, err := ecw.GetFiledMetas()
 	if err != nil {
 		return 0, err
@@ -403,7 +403,7 @@ func (ecw *ExcelStreamWriter) writeData(rowNumber int, rows []map[string]string)
 	return nextRowNumber, err
 }
 
-func (ecw *ExcelStreamWriter) save() (err error) {
+func (ecw *ExcelStreamWriter) Save() (err error) {
 	err = ecw.streamWriter.Flush()
 	if err != nil {
 		return err
