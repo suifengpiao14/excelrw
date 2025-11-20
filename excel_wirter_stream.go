@@ -117,7 +117,6 @@ func (excelWriter *_ExcelWriter) GetStreamWriter(fd *excelize.File, sheet string
 	if err != nil {
 		return
 	}
-
 	rows, err := fd.GetRows(sheet) //获取行内容
 	if err != nil {
 		return
@@ -128,7 +127,7 @@ func (excelWriter *_ExcelWriter) GetStreamWriter(fd *excelize.File, sheet string
 		rowNumber = rowindex + 1
 		colLen := len(oldRow)
 		newRow := make([]any, colLen)
-		for colIndex := 0; colIndex < colLen; colIndex++ {
+		for colIndex := range colLen {
 			if oldRow == nil {
 				newRow[colIndex] = nil
 			} else {
@@ -163,7 +162,8 @@ type ExcelStreamWriter struct {
 	interval      time.Duration
 	maxLoopCount  int // 最大循环次数
 	//callbacks     []CallBackFnV2
-	lock sync.Mutex
+	lock        sync.Mutex
+	moveOldFile bool
 }
 
 type CallBackFnV2 func(fileUrl string) (err error)
@@ -175,6 +175,7 @@ func NewExcelStreamWriter(ctx context.Context, filename string) (ecw *ExcelStrea
 		filename:    filename,
 		sheet:       SheetDefault,
 		context:     ctx,
+		moveOldFile: true,
 	}
 	return ecw
 }
@@ -191,7 +192,7 @@ func (ecw *ExcelStreamWriter) init() (err error) {
 		return nil
 	}
 
-	fd, err := ecw.excelWriter.GetFile(ecw.filename, ecw.sheet, true)
+	fd, err := ecw.excelWriter.GetFile(ecw.filename, ecw.sheet, ecw.moveOldFile)
 	if err != nil {
 		return err
 	}
@@ -208,6 +209,12 @@ func (ecw *ExcelStreamWriter) init() (err error) {
 
 func (ecw *ExcelStreamWriter) WithSheet(sheet string) *ExcelStreamWriter {
 	ecw.sheet = sheet
+	return ecw
+}
+
+// WithAppendToExistsFile 追加到已存在的文件，不移动旧文件
+func (ecw *ExcelStreamWriter) WithAppendToExistsFile() *ExcelStreamWriter {
+	ecw.moveOldFile = false
 	return ecw
 }
 func (ecw *ExcelStreamWriter) WithFieldMetas(fieldMetas defined.FieldMetas) *ExcelStreamWriter {
