@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -162,6 +163,7 @@ type ExcelStreamWriter struct {
 	interval      time.Duration
 	maxLoopCount  int // 最大循环次数
 	//callbacks     []CallBackFnV2
+	lock sync.Mutex
 }
 
 type CallBackFnV2 func(fileUrl string) (err error)
@@ -177,6 +179,33 @@ func NewExcelStreamWriter(ctx context.Context, filename string) (ecw *ExcelStrea
 	return ecw
 }
 
+func (ecw *ExcelStreamWriter) init() (err error) {
+	if ecw.fd != nil { // 后续优化，这里要加锁，防止并发初始化
+		return nil
+	}
+	ecw.lock.Lock()
+	defer ecw.lock.Unlock()
+
+	//二次校验
+	if ecw.fd != nil { // 后续优化，这里要加锁，防止并发初始化
+		return nil
+	}
+
+	fd, err := ecw.excelWriter.GetFile(ecw.filename, ecw.sheet, true)
+	if err != nil {
+		return err
+	}
+	ecw.fd = fd
+	streamWriter, nextRowNumber, err := ecw.excelWriter.GetStreamWriter(fd, ecw.sheet)
+	if err != nil {
+		return
+	}
+	ecw.nextRowNumber = nextRowNumber
+	ecw.streamWriter = streamWriter
+
+	return
+}
+
 func (ecw *ExcelStreamWriter) WithSheet(sheet string) *ExcelStreamWriter {
 	ecw.sheet = sheet
 	return ecw
@@ -186,7 +215,7 @@ func (ecw *ExcelStreamWriter) WithFieldMetas(fieldMetas defined.FieldMetas) *Exc
 	return ecw
 }
 
-func (ecw ExcelStreamWriter) GetFilename() string {
+func (ecw *ExcelStreamWriter) GetFilename() string {
 	return ecw.filename
 }
 
@@ -291,28 +320,6 @@ func (ecw *ExcelStreamWriter) GetFiledMetas() (fields defined.FieldMetas, err er
 	return ecw.fieldMetas, nil
 }
 
-func (ecw *ExcelStreamWriter) init() (err error) {
-
-	if ecw.fetcher == nil {
-		return errors.New("fetcher is nil")
-	}
-
-	fd, err := ecw.excelWriter.GetFile(ecw.filename, ecw.sheet, true)
-	if err != nil {
-		return err
-	}
-	ecw.fd = fd
-	streamWriter, nextRowNumber, err := ecw.excelWriter.GetStreamWriter(fd, ecw.sheet)
-	if err != nil {
-		return
-	}
-
-	ecw.nextRowNumber = nextRowNumber
-	ecw.streamWriter = streamWriter
-
-	return
-}
-
 // Run 执行导出 ,返回错误通道,如果需要同步，则调用方只需同步等待errChan结果即可，若为异步执行，则调用方只需将errChan异步处理即可或者忽略
 func (ecw *ExcelStreamWriter) Run() (errChan chan error, err error) {
 
@@ -331,6 +338,9 @@ func (ecw *ExcelStreamWriter) Run() (errChan chan error, err error) {
 
 }
 func (ecw *ExcelStreamWriter) loop() (err error) {
+	if ecw.fetcher == nil {
+		return errors.New("fetcher is requeired")
+	}
 	loopTimes := 0
 	maxLoopTimes := ecw.gethMaxLoopTimes()
 	defer ecw.Save()
@@ -392,10 +402,15 @@ func (ecw *ExcelStreamWriter) setColWidth() (err error) {
 }
 
 func (ecw *ExcelStreamWriter) WriteData(rowNumber int, rows []map[string]string) (nextRowNumber int, err error) {
+	err = ecw.init()
+	if err != nil {
+		return 0, err
+	}
 	fieldMetas, err := ecw.GetFiledMetas()
 	if err != nil {
 		return 0, err
 	}
+	rowNumber = max(1, rowNumber) // 行号最小为1
 	nextRowNumber, err = ecw.excelWriter.Write2streamWriter(ecw.streamWriter, fieldMetas, !ecw.withoutTitleRow, rowNumber, rows)
 	if err != nil {
 		return 0, err

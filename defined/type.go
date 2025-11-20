@@ -80,6 +80,9 @@ func (fs FieldMetas) MakeTitleRow() map[string]string {
 	return m
 
 }
+func (fs FieldMetas) Empty() bool {
+	return len(fs) == 0
+}
 
 func (fs *FieldMetas) Unmarshal(fieldMetasStr string) (err error) {
 	if fieldMetasStr == "" {
