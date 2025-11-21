@@ -369,7 +369,10 @@ func (ecw *ExcelStreamWriter) loop() (err error) {
 		}
 		if loopTimes == 1 { // 第一次循环 ,写在len(data) == 0之前,确保需要写入标题时，一定会写入标题行数据,方便调试和测试)
 			if !ecw.withoutTitleRow { // 第一次循环，增加标题行数据
-				data = append([]map[string]string{ecw.getTitleRow()}, data...) //添加到第一行
+				titleRows := ecw.getTitleRow()
+				if len(titleRows) > 0 {
+					data = append([]map[string]string{titleRows}, data...) //添加到第一行
+				}
 			}
 			// 使用第一次数据作为样本(包含标题和实际数据),计算最大列宽
 			ecw.calFieldMetaMaxSize(data)
