@@ -208,6 +208,10 @@ func (ecw *ExcelStreamWriter) init() (err error) {
 	return
 }
 
+func (ecw *ExcelStreamWriter) GetNexRowNumber() int {
+	return ecw.nextRowNumber
+}
+
 func (ecw *ExcelStreamWriter) WithSheet(sheet string) *ExcelStreamWriter {
 	ecw.sheet = sheet
 	return ecw
@@ -382,7 +386,7 @@ func (ecw *ExcelStreamWriter) loop() (err error) {
 			break
 		}
 
-		ecw.nextRowNumber, err = ecw.WriteData(ecw.nextRowNumber, data)
+		err = ecw.WriteData(data)
 		if err != nil {
 			return err
 		}
@@ -406,26 +410,25 @@ func (ecw *ExcelStreamWriter) setColWidth() (err error) {
 	return nil
 }
 
-func (ecw *ExcelStreamWriter) WriteData(rowNumber int, rows []map[string]string) (nextRowNumber int, err error) {
+func (ecw *ExcelStreamWriter) WriteData(rows []map[string]string) (err error) {
 	err = ecw.init()
 	if err != nil {
-		return 0, err
+		return err
 	}
 	fieldMetas, err := ecw.GetFiledMetas()
 	if err != nil {
-		return 0, err
+		return err
 	}
-	rowNumber = max(1, rowNumber) // 行号最小为1
-	if ecw.withTitleRow {         //增加标题行数据(因为只有一个协程在处理，所以后续改成false 即可控制输入一次)
+	if ecw.withTitleRow { //增加标题行数据(因为只有一个协程在处理，所以后续改成false 即可控制输入一次)
 		titleRows := ecw.getTitleRow()
 		rows = append([]map[string]string{titleRows}, rows...) //添加到第一行
 		ecw.withTitleRow = false                               // 第一次写入标题行后，后续不再重复写入
 	}
-	nextRowNumber, err = ecw.excelWriter.Write2streamWriter(ecw.streamWriter, fieldMetas, ecw.withTitleRow, rowNumber, rows)
+	ecw.nextRowNumber, err = ecw.excelWriter.Write2streamWriter(ecw.streamWriter, fieldMetas, ecw.withTitleRow, ecw.nextRowNumber, rows)
 	if err != nil {
-		return 0, err
+		return err
 	}
-	return nextRowNumber, err
+	return err
 }
 
 func (ecw *ExcelStreamWriter) Save() (err error) {
