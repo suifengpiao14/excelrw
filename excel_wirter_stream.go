@@ -152,7 +152,7 @@ type ExcelStreamWriter struct {
 	filename          string
 	sheet             string
 	fieldMetas        defined.FieldMetas
-	withoutTitleRow   bool
+	withTitleRow      bool
 	RemoveFileTimeout time.Duration
 
 	nextRowNumber int
@@ -171,11 +171,12 @@ type CallBackFnV2 func(fileUrl string) (err error)
 func NewExcelStreamWriter(ctx context.Context, filename string) (ecw *ExcelStreamWriter) {
 	excelWriter := NewExcelWriter()
 	ecw = &ExcelStreamWriter{
-		excelWriter: excelWriter,
-		filename:    filename,
-		sheet:       SheetDefault,
-		context:     ctx,
-		moveOldFile: true,
+		excelWriter:  excelWriter,
+		filename:     filename,
+		sheet:        SheetDefault,
+		context:      ctx,
+		moveOldFile:  true,
+		withTitleRow: true, // 默认true，写入标题行
 	}
 	return ecw
 }
@@ -226,8 +227,8 @@ func (ecw *ExcelStreamWriter) GetFilename() string {
 	return ecw.filename
 }
 
-func (ecw *ExcelStreamWriter) WithoutTitleRow() *ExcelStreamWriter {
-	ecw.withoutTitleRow = true
+func (ecw *ExcelStreamWriter) WithTitleRow(withTitle bool) *ExcelStreamWriter {
+	ecw.withTitleRow = withTitle
 	return ecw
 }
 
@@ -368,12 +369,6 @@ func (ecw *ExcelStreamWriter) loop() (err error) {
 			return err
 		}
 		if loopTimes == 1 { // 第一次循环 ,写在len(data) == 0之前,确保需要写入标题时，一定会写入标题行数据,方便调试和测试)
-			if !ecw.withoutTitleRow { // 第一次循环，增加标题行数据
-				titleRows := ecw.getTitleRow()
-				if len(titleRows) > 0 {
-					data = append([]map[string]string{titleRows}, data...) //添加到第一行
-				}
-			}
 			// 使用第一次数据作为样本(包含标题和实际数据),计算最大列宽
 			ecw.calFieldMetaMaxSize(data)
 			// 设置列宽(必须在写入数据之前调用)
@@ -421,7 +416,12 @@ func (ecw *ExcelStreamWriter) WriteData(rowNumber int, rows []map[string]string)
 		return 0, err
 	}
 	rowNumber = max(1, rowNumber) // 行号最小为1
-	nextRowNumber, err = ecw.excelWriter.Write2streamWriter(ecw.streamWriter, fieldMetas, !ecw.withoutTitleRow, rowNumber, rows)
+	if ecw.withTitleRow {         //增加标题行数据(因为只有一个协程在处理，所以后续改成false 即可控制输入一次)
+		titleRows := ecw.getTitleRow()
+		rows = append([]map[string]string{titleRows}, rows...) //添加到第一行
+		ecw.withTitleRow = false                               // 第一次写入标题行后，后续不再重复写入
+	}
+	nextRowNumber, err = ecw.excelWriter.Write2streamWriter(ecw.streamWriter, fieldMetas, ecw.withTitleRow, rowNumber, rows)
 	if err != nil {
 		return 0, err
 	}
