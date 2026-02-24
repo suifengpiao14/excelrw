@@ -357,10 +357,6 @@ func MakeExportApiIn(in MakeExportApiInArgs, config repository.ExportConfigModel
 	if err != nil {
 		return exportApiIn, err
 	}
-	dynamicFn, err := config.ParseDynamicScript()
-	if err != nil {
-		return exportApiIn, err
-	}
 	fieldMetas, err := config.ParseFieldMetas()
 	if err != nil {
 		return exportApiIn, err
@@ -373,7 +369,10 @@ func MakeExportApiIn(in MakeExportApiInArgs, config repository.ExportConfigModel
 	if err != nil {
 		return exportApiIn, err
 	}
-
+	dynamicFn, err := config.ParseDynamicScript()
+	if err != nil {
+		return exportApiIn, err
+	}
 	in.Request.RequestFormatFn = dynamicFn.RequestFormatFn
 	in.response.RecordFormatFn = dynamicFn.RecordFormatFn
 
