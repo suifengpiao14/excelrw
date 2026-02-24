@@ -116,15 +116,8 @@ func (m ExportConfigModel) GetDeleteFileDelay() time.Duration {
 	return duration
 }
 
-func (m ExportConfigModel) ParseFieldMetas(fieldMetasFormatFn defined.FieldMetasFormatFn) (fieldMetas defined.FieldMetas, err error) {
+func (m ExportConfigModel) ParseFieldMetas() (fieldMetas defined.FieldMetas, err error) {
 	fieldMetas = make(defined.FieldMetas, 0)
-	if fieldMetasFormatFn != nil {
-		fieldMetas, err = fieldMetasFormatFn()
-		if err != nil {
-			return nil, err
-		}
-		return fieldMetas, nil
-	}
 	if m.FieldMetas == "" {
 		return fieldMetas, nil
 	}
@@ -212,11 +205,10 @@ var SettingFnName = "settingFn"
 var FieldMetasFormatFnName = "fieldMetasFormatFn"
 
 type DynamicFn struct {
-	SettingFn          defined.SettingFn
-	RequestFormatFn    defined.RequestFormatFn
-	ResponseFormatFn   defined.ResponseFormatFn
-	RecordFormatFn     defined.RecordFormatFn
-	FieldMetasFormatFn defined.FieldMetasFormatFn
+	SettingFn        defined.SettingFn
+	RequestFormatFn  defined.RequestFormatFn
+	ResponseFormatFn defined.ResponseFormatFn
+	RecordFormatFn   defined.RecordFormatFn
 }
 
 func (m ExportConfigModel) ParseDynamicScript() (dynamicFn DynamicFn, err error) {
@@ -272,19 +264,6 @@ func (m ExportConfigModel) ParseDynamicScript() (dynamicFn DynamicFn, err error)
 	}
 
 	dynamicFn.SettingFn = settingFn
-
-	fieldMetasFormatFn, err := jsvm.FieldMetasFormatFn(FieldMetasFormatFnName)
-	if err != nil {
-		if errors.Is(err, dynamichook.ErrorJSNotFound) {
-			err = nil
-		}
-	}
-	if err != nil {
-		return dynamicFn, err
-	}
-
-	dynamicFn.FieldMetasFormatFn = fieldMetasFormatFn
-
 	return dynamicFn, nil
 }
 

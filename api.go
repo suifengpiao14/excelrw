@@ -361,7 +361,7 @@ func MakeExportApiIn(in MakeExportApiInArgs, config repository.ExportConfigModel
 	if err != nil {
 		return exportApiIn, err
 	}
-	fieldMetas, err := config.ParseFieldMetas(dynamicFn.FieldMetasFormatFn)
+	fieldMetas, err := config.ParseFieldMetas()
 	if err != nil {
 		return exportApiIn, err
 	}

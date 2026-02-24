@@ -174,29 +174,6 @@ func (jsVm *JSVM) SettingFn(fnName string) (fn defined.SettingFn, err error) {
 	}
 	return fn, nil
 }
-func (jsVm *JSVM) FieldMetasFormatFn(fnName string) (fn defined.FieldMetasFormatFn, err error) {
-	fn = func() (Setting defined.FieldMetas, err error) {
-		fieldMetas := defined.FieldMetas{}
-		return fieldMetas, nil
-	}
-
-	jsFunc, err := jsVm.GetJSFn(fnName)
-	if err != nil {
-		err = errors.WithMessage(err, "FieldMetasFormatFn GetJSFn error")
-		return fn, err
-	}
-	fn = func() (fieldMetas defined.FieldMetas, err error) {
-		// 默认值
-		fieldMetas = defined.FieldMetas{}
-		err = jsVm.CallJsFn(jsFunc, nil, &fieldMetas)
-		if err != nil {
-			err = errors.WithMessage(err, "FieldMetasFormatFn CallJsFn error")
-			return fieldMetas, err
-		}
-		return fieldMetas, nil
-	}
-	return fn, nil
-}
 
 func (jsVm *JSVM) GetJSFn(fnName string) (jsFunc goja.Callable, err error) {
 	vm := jsVm.vm
