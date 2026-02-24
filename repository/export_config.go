@@ -116,10 +116,10 @@ func (m ExportConfigModel) GetDeleteFileDelay() time.Duration {
 	return duration
 }
 
-func (m ExportConfigModel) ParseFieldMetas(fieldMetasFormatFn defined.FieldMetasFormatFn) (fieldMetas defined.FieldMetas, err error) {
+func (m ExportConfigModel) ParseFieldMetas(reqDTO httpraw.RequestDTO, fieldMetasFormatFn defined.FieldMetasFormatFn) (fieldMetas defined.FieldMetas, err error) {
 	fieldMetas = make(defined.FieldMetas, 0)
 	if fieldMetasFormatFn != nil {
-		fieldMetas, err = fieldMetasFormatFn()
+		fieldMetas, err = fieldMetasFormatFn(reqDTO)
 		if err != nil {
 			return nil, err
 		}

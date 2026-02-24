@@ -175,7 +175,7 @@ func (jsVm *JSVM) SettingFn(fnName string) (fn defined.SettingFn, err error) {
 	return fn, nil
 }
 func (jsVm *JSVM) FieldMetasFormatFn(fnName string) (fn defined.FieldMetasFormatFn, err error) {
-	fn = func() (Setting defined.FieldMetas, err error) {
+	fn = func(reqDTO httpraw.RequestDTO) (Setting defined.FieldMetas, err error) {
 		fieldMetas := defined.FieldMetas{}
 		return fieldMetas, nil
 	}
@@ -185,10 +185,10 @@ func (jsVm *JSVM) FieldMetasFormatFn(fnName string) (fn defined.FieldMetasFormat
 		err = errors.WithMessage(err, "FieldMetasFormatFn GetJSFn error")
 		return fn, err
 	}
-	fn = func() (fieldMetas defined.FieldMetas, err error) {
+	fn = func(reqDTO httpraw.RequestDTO) (fieldMetas defined.FieldMetas, err error) {
 		// 默认值
 		fieldMetas = defined.FieldMetas{}
-		err = jsVm.CallJsFn(jsFunc, nil, &fieldMetas)
+		err = jsVm.CallJsFn(jsFunc, reqDTO, &fieldMetas)
 		if err != nil {
 			err = errors.WithMessage(err, "FieldMetasFormatFn CallJsFn error")
 			return fieldMetas, err

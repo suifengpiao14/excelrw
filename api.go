@@ -361,9 +361,21 @@ func MakeExportApiIn(in MakeExportApiInArgs, config repository.ExportConfigModel
 	if err != nil {
 		return exportApiIn, err
 	}
-	fieldMetas, err := config.ParseFieldMetas(dynamicFn.FieldMetasFormatFn)
+	reqDTO, err := config.RenderRequestDTO(data, requestBody)
 	if err != nil {
 		return exportApiIn, err
+	}
+	var fieldMetas defined.FieldMetas
+	if dynamicFn.FieldMetasFormatFn != nil {
+		fieldMetas, err = dynamicFn.FieldMetasFormatFn(*reqDTO)
+		if err != nil {
+			return exportApiIn, err
+		}
+	} else {
+		fieldMetas, err = config.ParseFieldMetas(*reqDTO, dynamicFn.FieldMetasFormatFn)
+		if err != nil {
+			return exportApiIn, err
+		}
 	}
 	tnterval, err := config.ParseInterval()
 	if err != nil {
@@ -377,10 +389,6 @@ func MakeExportApiIn(in MakeExportApiInArgs, config repository.ExportConfigModel
 	in.Request.RequestFormatFn = dynamicFn.RequestFormatFn
 	in.response.RecordFormatFn = dynamicFn.RecordFormatFn
 
-	reqDTO, err := config.RenderRequestDTO(data, requestBody)
-	if err != nil {
-		return exportApiIn, err
-	}
 	header := reqDTO.Headers
 	maps.Copy(header, in.Request.Headers)
 	exportApiIn = ExportApiIn{
