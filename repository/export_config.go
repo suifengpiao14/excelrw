@@ -202,7 +202,6 @@ var RecordFormatFnName = "recordFormatFn"
 var RequestFormatFnName = "requestFormatFn"
 var ResponseFormatFnName = "responseFormatFn"
 var SettingFnName = "settingFn"
-var FieldMetasFormatFnName = "fieldMetasFormatFn"
 
 type DynamicFn struct {
 	SettingFn        defined.SettingFn
@@ -262,7 +261,6 @@ func (m ExportConfigModel) ParseDynamicScript() (dynamicFn DynamicFn, err error)
 	if err != nil {
 		return dynamicFn, err
 	}
-
 	dynamicFn.SettingFn = settingFn
 	return dynamicFn, nil
 }
