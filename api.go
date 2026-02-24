@@ -10,6 +10,7 @@ import (
 
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/go-playground/validator/v10"
+	"github.com/iancoleman/orderedmap"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 	"github.com/suifengpiao14/apihttpprotocol"
@@ -197,9 +198,14 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 		data := gjson.GetBytes(resp, proxyRsp.DataPath).Array()
 
 		if len(ecw.fieldMetas) == 0 && len(data) > 0 { // 没有传入字段元数据，则自动从第一行获取字段名作为标题
-			firstRow := data[0]
+			firstRow := data[0].String() // 获取第一行数据，做为标题字段名
 			fieldMetas := make([]defined.FieldMeta, 0)
-			for key := range firstRow.Map() {
+			newOm := orderedmap.New()
+			err = json.Unmarshal([]byte(firstRow), newOm)
+			if err != nil {
+				return nil, err
+			}
+			for _, key := range newOm.Keys() {
 				fieldMetas = append(fieldMetas, defined.FieldMeta{Name: key, Title: key})
 			}
 			ecw = ecw.WithFieldMetas(fieldMetas)
@@ -365,17 +371,9 @@ func MakeExportApiIn(in MakeExportApiInArgs, config repository.ExportConfigModel
 	if err != nil {
 		return exportApiIn, err
 	}
-	var fieldMetas defined.FieldMetas
-	if dynamicFn.FieldMetasFormatFn != nil {
-		fieldMetas, err = dynamicFn.FieldMetasFormatFn(*reqDTO)
-		if err != nil {
-			return exportApiIn, err
-		}
-	} else {
-		fieldMetas, err = config.ParseFieldMetas(*reqDTO, dynamicFn.FieldMetasFormatFn)
-		if err != nil {
-			return exportApiIn, err
-		}
+	fieldMetas, err := config.ParseFieldMetas()
+	if err != nil {
+		return exportApiIn, err
 	}
 	tnterval, err := config.ParseInterval()
 	if err != nil {
@@ -388,6 +386,19 @@ func MakeExportApiIn(in MakeExportApiInArgs, config repository.ExportConfigModel
 
 	in.Request.RequestFormatFn = dynamicFn.RequestFormatFn
 	in.response.RecordFormatFn = dynamicFn.RecordFormatFn
+	if dynamicFn.SettingFn != nil {
+		body := string(in.Request.Body)
+		setting, err := dynamicFn.SettingFn(body)
+		if err != nil {
+			return exportApiIn, err
+		}
+		if setting.Filename != "" {
+			filename = setting.Filename
+		}
+		if len(setting.Titles) > 0 {
+			fieldMetas = setting.Titles
+		}
+	}
 
 	header := reqDTO.Headers
 	maps.Copy(header, in.Request.Headers)

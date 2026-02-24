@@ -5,9 +5,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/dop251/goja"
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 	"github.com/suifengpiao14/excelrw/defined"
@@ -143,13 +143,9 @@ func (jsVm *JSVM) RequestFormatFn(fnName string) (fn defined.RequestFormatFn, er
 
 func (jsVm *JSVM) SettingFn(fnName string) (fn defined.SettingFn, err error) {
 	fn = func(body string) (Setting defined.Setting, err error) {
-		setting := defined.Setting{
-			Filename: uuid.NewString() + ".xlsx",
-			Titles:   defined.FieldMetas{},
-		}
+		setting := defined.Setting{} //这里filename不能填写默认值，否则存在SettingFn就会覆盖配置设置
 		return setting, nil
 	}
-
 	jsFunc, err := jsVm.GetJSFn(fnName)
 	if err != nil {
 		err = errors.WithMessage(err, "SettingFn GetJSFn error")
@@ -158,7 +154,7 @@ func (jsVm *JSVM) SettingFn(fnName string) (fn defined.SettingFn, err error) {
 	fn = func(body string) (setting defined.Setting, err error) {
 		// 默认值
 		setting = defined.Setting{
-			Filename: uuid.NewString() + ".xlsx",
+			Filename: "",
 			Titles:   defined.FieldMetas{},
 		}
 		err = jsVm.CallJsFn(jsFunc, body, &setting)
@@ -174,30 +170,6 @@ func (jsVm *JSVM) SettingFn(fnName string) (fn defined.SettingFn, err error) {
 	}
 	return fn, nil
 }
-func (jsVm *JSVM) FieldMetasFormatFn(fnName string) (fn defined.FieldMetasFormatFn, err error) {
-	fn = func(reqDTO httpraw.RequestDTO) (Setting defined.FieldMetas, err error) {
-		fieldMetas := defined.FieldMetas{}
-		return fieldMetas, nil
-	}
-
-	jsFunc, err := jsVm.GetJSFn(fnName)
-	if err != nil {
-		err = errors.WithMessage(err, "FieldMetasFormatFn GetJSFn error")
-		return fn, err
-	}
-	fn = func(reqDTO httpraw.RequestDTO) (fieldMetas defined.FieldMetas, err error) {
-		// 默认值
-		fieldMetas = defined.FieldMetas{}
-		err = jsVm.CallJsFn(jsFunc, reqDTO, &fieldMetas)
-		if err != nil {
-			err = errors.WithMessage(err, "FieldMetasFormatFn CallJsFn error")
-			return fieldMetas, err
-		}
-		return fieldMetas, nil
-	}
-	return fn, nil
-}
-
 func (jsVm *JSVM) GetJSFn(fnName string) (jsFunc goja.Callable, err error) {
 	vm := jsVm.vm
 	jsFuncVal := vm.Get(fnName)
@@ -297,17 +269,25 @@ func registerUtils(vm *goja.Runtime) {
 	console := map[string]func(goja.FunctionCall) goja.Value{
 		"log": func(fc goja.FunctionCall) goja.Value {
 			// 简单打印所有参数的字符串形式
-			out := ""
+			var out strings.Builder
 			for i, a := range fc.Arguments {
 				if i > 0 {
-					out += " "
+					out.WriteString(" ")
 				}
-				out += a.String()
+				out.WriteString(a.String())
 			}
-			fmt.Println(out)
+			if LogFn == nil {
+				LogFn = defaultLogFn
+			}
+			s := fmt.Sprintf(`javascript:console.log:%s`, out.String())
+			LogFn(s)
 			return goja.Undefined()
 		},
 	}
 	vm.Set("console", console)
+}
 
+var LogFn func(v ...any) = defaultLogFn
+var defaultLogFn = func(v ...any) {
+	fmt.Println(v...)
 }

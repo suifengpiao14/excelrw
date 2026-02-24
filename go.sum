@@ -80,6 +80,8 @@ github.com/gopherjs/gopherjs v1.17.2 h1:fQnZVsXk8uxXIStYb0N4bGk7jeyTalG/wsZjQ25d
 github.com/gopherjs/gopherjs v1.17.2/go.mod h1:pRRIvn/QzFLrKfvEz3qUuEhtE/zLCWfreZ6J5gM2i+k=
 github.com/hoisie/mustache v0.0.0-20160804235033-6375acf62c69 h1:umaj0TCQ9lWUUKy2DxAhEzPbwd0jnxiw1EI2z3FiILM=
 github.com/hoisie/mustache v0.0.0-20160804235033-6375acf62c69/go.mod h1:zdLK9ilQRSMjSeLKoZ4BqUfBT7jswTGF8zRlKEsiRXA=
+github.com/iancoleman/orderedmap v0.3.0 h1:5cbR2grmZR/DiVt+VJopEhtVs9YGInGIxAoMJn+Ichc=
+github.com/iancoleman/orderedmap v0.3.0/go.mod h1:XuLcCUkdL5owUCQeF2Ue9uuw1EptkJDkXXS7VoV7XGE=
 github.com/jfcote87/sshdb v0.5.3 h1:c0I3+ScEbT0mjvpoY8qbVNfR4Y9Q5JWh52WnmjfsuV0=
 github.com/jfcote87/sshdb v0.5.3/go.mod h1:YIGPRF3vtRG1Cvpwa1LaQvmrsIEPKC9WqF+ZU5rInUw=
 github.com/jinzhu/inflection v1.0.0 h1:K317FqzuhWc8YvSVlFMCCUb36O/S9MCKRDI7QkRKD/E=

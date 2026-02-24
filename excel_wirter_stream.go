@@ -80,17 +80,14 @@ func (excelWriter *_ExcelWriter) SetColWidth(streamWriter *excelize.StreamWriter
 }
 
 // Write2streamWriter 向写入流中写入数据
-func (excelWriter *_ExcelWriter) Write2streamWriter(streamWriter *excelize.StreamWriter, fieldMetas defined.FieldMetas, withTitleRow bool, rowNumber int, rows []map[string]string) (nextRowNumber int, err error) {
+func (excelWriter *_ExcelWriter) Write2streamWriter(streamWriter *excelize.StreamWriter, fieldMetas defined.FieldMetas, rowNumber int, rows []map[string]string) (nextRowNumber int, err error) {
 	colLen := len(fieldMetas)
 	minColIndex := 1
 
 	for _, record := range rows {
 		// 组装一行数据
 		row := make([]any, colLen)
-		dataRaw := rowNumber
-		if withTitleRow {
-			dataRaw = rowNumber - 1
-		}
+		dataRaw := rowNumber - 1
 		for i := range colLen {
 			row[i] = fieldMetas[i].GetValue(dataRaw, record)
 		}
@@ -147,12 +144,12 @@ func (excelWriter *_ExcelWriter) GetStreamWriter(fd *excelize.File, sheet string
 type FetcherFn func(loopCount int) (rows []map[string]string, err error)
 
 type ExcelStreamWriter struct {
-	fd                *excelize.File
-	excelWriter       *_ExcelWriter
-	filename          string
-	sheet             string
-	fieldMetas        defined.FieldMetas
-	withTitleRow      bool
+	fd          *excelize.File
+	excelWriter *_ExcelWriter
+	filename    string
+	sheet       string
+	fieldMetas  defined.FieldMetas
+	//withTitleRow      bool
 	RemoveFileTimeout time.Duration
 
 	nextRowNumber int
@@ -171,12 +168,12 @@ type CallBackFnV2 func(fileUrl string) (err error)
 func NewExcelStreamWriter(ctx context.Context, filename string) (ecw *ExcelStreamWriter) {
 	excelWriter := NewExcelWriter()
 	ecw = &ExcelStreamWriter{
-		excelWriter:  excelWriter,
-		filename:     filename,
-		sheet:        SheetDefault,
-		context:      ctx,
-		moveOldFile:  true,
-		withTitleRow: true, // 默认true，写入标题行
+		excelWriter: excelWriter,
+		filename:    filename,
+		sheet:       SheetDefault,
+		context:     ctx,
+		moveOldFile: true,
+		//withTitleRow: true, // 默认true，写入标题行
 	}
 	return ecw
 }
@@ -204,6 +201,10 @@ func (ecw *ExcelStreamWriter) init() (err error) {
 	}
 	ecw.nextRowNumber = nextRowNumber
 	ecw.streamWriter = streamWriter
+	err = ecw.writeTitle()
+	if err != nil {
+		return err
+	}
 
 	return
 }
@@ -231,10 +232,10 @@ func (ecw *ExcelStreamWriter) GetFilename() string {
 	return ecw.filename
 }
 
-func (ecw *ExcelStreamWriter) WithTitleRow(withTitle bool) *ExcelStreamWriter {
-	ecw.withTitleRow = withTitle
-	return ecw
-}
+// func (ecw *ExcelStreamWriter) WithTitleRow(withTitle bool) *ExcelStreamWriter {
+// 	ecw.withTitleRow = withTitle
+// 	return ecw
+// }
 
 func (ecw *ExcelStreamWriter) AutoAdjustColumnWidth() (err error) {
 	for i, fieldMeta := range ecw.fieldMetas {
@@ -410,6 +411,18 @@ func (ecw *ExcelStreamWriter) setColWidth() (err error) {
 	return nil
 }
 
+func (ecw *ExcelStreamWriter) writeTitle() (err error) {
+	titles := ecw.getTitleRow()
+	if len(titles) > 0 {
+		data := []map[string]string{titles}
+		err = ecw.WriteData(data)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (ecw *ExcelStreamWriter) WriteData(rows []map[string]string) (err error) {
 	err = ecw.init()
 	if err != nil {
@@ -419,12 +432,12 @@ func (ecw *ExcelStreamWriter) WriteData(rows []map[string]string) (err error) {
 	if err != nil {
 		return err
 	}
-	if ecw.withTitleRow { //增加标题行数据(因为只有一个协程在处理，所以后续改成false 即可控制输入一次)
-		titleRows := ecw.getTitleRow()
-		rows = append([]map[string]string{titleRows}, rows...) //添加到第一行
-		ecw.withTitleRow = false                               // 第一次写入标题行后，后续不再重复写入
-	}
-	ecw.nextRowNumber, err = ecw.excelWriter.Write2streamWriter(ecw.streamWriter, fieldMetas, ecw.withTitleRow, ecw.nextRowNumber, rows)
+	// if ecw.withTitleRow { //增加标题行数据(因为只有一个协程在处理，所以后续改成false 即可控制输入一次)
+	// 	titleRows := ecw.getTitleRow()
+	// 	rows = append([]map[string]string{titleRows}, rows...) //添加到第一行
+	// 	ecw.withTitleRow = false                               // 第一次写入标题行后，后续不再重复写入
+	// }
+	ecw.nextRowNumber, err = ecw.excelWriter.Write2streamWriter(ecw.streamWriter, fieldMetas, ecw.nextRowNumber, rows)
 	if err != nil {
 		return err
 	}

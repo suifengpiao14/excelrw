@@ -7,8 +7,8 @@ require (
 	github.com/cbroglie/mustache v1.4.0
 	github.com/dop251/goja v0.0.0-20251008123653-cf18d89f3cf6
 	github.com/go-playground/validator/v10 v10.27.0
-	github.com/google/uuid v1.6.0
 	github.com/hoisie/mustache v0.0.0-20160804235033-6375acf62c69
+	github.com/iancoleman/orderedmap v0.3.0
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cast v1.10.0
 	github.com/stretchr/testify v1.11.0
@@ -44,6 +44,7 @@ require (
 	github.com/go-sql-driver/mysql v1.7.0 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/google/pprof v0.0.0-20230207041349-798e818bf904 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/gopherjs/gopherjs v1.17.2 // indirect
 	github.com/jfcote87/sshdb v0.5.3 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
