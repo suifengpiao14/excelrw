@@ -174,6 +174,29 @@ func (jsVm *JSVM) SettingFn(fnName string) (fn defined.SettingFn, err error) {
 	}
 	return fn, nil
 }
+func (jsVm *JSVM) FieldMetasFormatFn(fnName string) (fn defined.FieldMetasFormatFn, err error) {
+	fn = func() (Setting defined.FieldMetas, err error) {
+		fieldMetas := defined.FieldMetas{}
+		return fieldMetas, nil
+	}
+
+	jsFunc, err := jsVm.GetJSFn(fnName)
+	if err != nil {
+		err = errors.WithMessage(err, "FieldMetasFormatFn GetJSFn error")
+		return fn, err
+	}
+	fn = func() (fieldMetas defined.FieldMetas, err error) {
+		// 默认值
+		fieldMetas = defined.FieldMetas{}
+		err = jsVm.CallJsFn(jsFunc, nil, &fieldMetas)
+		if err != nil {
+			err = errors.WithMessage(err, "FieldMetasFormatFn CallJsFn error")
+			return fieldMetas, err
+		}
+		return fieldMetas, nil
+	}
+	return fn, nil
+}
 
 func (jsVm *JSVM) GetJSFn(fnName string) (jsFunc goja.Callable, err error) {
 	vm := jsVm.vm
@@ -193,13 +216,18 @@ func (jsVm *JSVM) GetJSFn(fnName string) (jsFunc goja.Callable, err error) {
 func (jsVm *JSVM) CallJsFn(jsFunc goja.Callable, input any, output any) (err error) {
 	vm := jsVm.vm
 	var inputAny any = input // 确保使用map 等基本格式
-	if b, err := json.Marshal(input); err == nil {
-		var tmp any
-		err = json.Unmarshal(b, &tmp)
-		if err == nil {
-			inputAny = tmp
+	if input == nil {
+		inputAny = map[string]any{}
+	} else {
+		if b, err := json.Marshal(input); err == nil {
+			var tmp any
+			err = json.Unmarshal(b, &tmp)
+			if err == nil {
+				inputAny = tmp
+			}
 		}
 	}
+
 	jsBody := vm.ToValue(inputAny)
 	res, err := jsFunc(goja.Undefined(), jsBody)
 	if err != nil {
