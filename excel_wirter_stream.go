@@ -201,10 +201,6 @@ func (ecw *ExcelStreamWriter) init() (err error) {
 	}
 	ecw.nextRowNumber = nextRowNumber
 	ecw.streamWriter = streamWriter
-	err = ecw.writeTitle()
-	if err != nil {
-		return err
-	}
 
 	return
 }
@@ -373,7 +369,12 @@ func (ecw *ExcelStreamWriter) loop() (err error) {
 		if err != nil {
 			return err
 		}
-		if loopTimes == 1 { // 第一次循环 ,写在len(data) == 0之前,确保需要写入标题时，一定会写入标题行数据,方便调试和测试)
+		isFinished := len(data) == 0 //第一次带标题写入，会修改data值，所以这里先记录真实数据长度
+		if loopTimes == 1 {          // 第一次循环 ,写在len(data) == 0之前,确保需要写入标题时，一定会写入标题行数据,方便调试和测试)
+			titles := ecw.getTitleRow()
+			if len(titles) > 0 { // 写入标题行数据(如果需要)
+				data = append([]map[string]string{titles}, data...)
+			}
 			// 使用第一次数据作为样本(包含标题和实际数据),计算最大列宽
 			ecw.calFieldMetaMaxSize(data)
 			// 设置列宽(必须在写入数据之前调用)
@@ -382,15 +383,14 @@ func (ecw *ExcelStreamWriter) loop() (err error) {
 				return err
 			}
 		}
-
-		if len(data) == 0 {
-			break
-		}
-
-		err = ecw.WriteData(data)
+		err = ecw.WriteData(data) // 第一次isFinished可能为true,但是data包含标题，不为空，所以这里先写再判断是否结束
 		if err != nil {
 			return err
 		}
+		if isFinished {
+			break
+		}
+
 		if ecw.interval > 0 {
 			time.Sleep(ecw.interval)
 		}
@@ -411,19 +411,10 @@ func (ecw *ExcelStreamWriter) setColWidth() (err error) {
 	return nil
 }
 
-func (ecw *ExcelStreamWriter) writeTitle() (err error) {
-	titles := ecw.getTitleRow()
-	if len(titles) > 0 {
-		data := []map[string]string{titles}
-		err = ecw.WriteData(data)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (ecw *ExcelStreamWriter) WriteData(rows []map[string]string) (err error) {
+	if len(rows) == 0 { // 没有数据，直接返回
+		return nil
+	}
 	err = ecw.init()
 	if err != nil {
 		return err
