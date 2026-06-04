@@ -196,6 +196,7 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 			}
 		}
 		data := gjson.GetBytes(resp, proxyRsp.DataPath).Array()
+		resp = nil // release response body memory
 
 		if len(ecw.fieldMetas) == 0 && len(data) > 0 { // 没有传入字段元数据，则自动从第一行获取字段名作为标题
 			firstRow := data[0].String() // 获取第一行数据，做为标题字段名

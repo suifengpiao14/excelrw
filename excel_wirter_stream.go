@@ -115,28 +115,32 @@ func (excelWriter *_ExcelWriter) GetStreamWriter(fd *excelize.File, sheet string
 	if err != nil {
 		return
 	}
-	rows, err := fd.GetRows(sheet) //获取行内容
+	// 使用 Rows() 迭代器逐行读取，避免 GetRows 一次性全量加载到内存
+	rowIterator, err := fd.Rows(sheet)
 	if err != nil {
 		return
 	}
-	//将源文件内容先写入excel
+	defer rowIterator.Close()
 	rowNumber := 0
-	for rowindex, oldRow := range rows {
-		rowNumber = rowindex + 1
+	for rowIterator.Next() {
+		rowNumber++
+		oldRow, err := rowIterator.Columns()
+		if err != nil {
+			return nil, 0, err
+		}
 		colLen := len(oldRow)
 		newRow := make([]any, colLen)
 		for colIndex := range colLen {
-			if oldRow == nil {
-				newRow[colIndex] = nil
-			} else {
-				newRow[colIndex] = oldRow[colIndex]
-			}
+			newRow[colIndex] = oldRow[colIndex]
 		}
 		beginCell, _ := excelize.CoordinatesToCellName(1, rowNumber)
 		err = streamWriter.SetRow(beginCell, newRow)
 		if err != nil {
-			return
+			return nil, 0, err
 		}
+	}
+	if err = rowIterator.Error(); err != nil {
+		return nil, 0, err
 	}
 	nextRowNumber = rowNumber + 1
 	return streamWriter, nextRowNumber, nil
@@ -199,6 +203,7 @@ func (ecw *ExcelStreamWriter) init() (err error) {
 	ecw.fd = fd
 	streamWriter, nextRowNumber, err := ecw.excelWriter.GetStreamWriter(fd, ecw.sheet)
 	if err != nil {
+		fd.Close() // GetStreamWriter 失败时关闭文件，防止泄漏
 		return
 	}
 	ecw.nextRowNumber = nextRowNumber
@@ -229,11 +234,6 @@ func (ecw *ExcelStreamWriter) WithFieldMetas(fieldMetas defined.FieldMetas) *Exc
 func (ecw *ExcelStreamWriter) GetFilename() string {
 	return ecw.filename
 }
-
-// func (ecw *ExcelStreamWriter) WithTitleRow(withTitle bool) *ExcelStreamWriter {
-// 	ecw.withTitleRow = withTitle
-// 	return ecw
-// }
 
 func (ecw *ExcelStreamWriter) AutoAdjustColumnWidth() (err error) {
 	for i, fieldMeta := range ecw.fieldMetas {

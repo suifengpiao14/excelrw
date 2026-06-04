@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/dop251/goja"
 	"github.com/pkg/errors"
@@ -18,9 +19,31 @@ var ErrorJSNotFound = fmt.Errorf("RecordFormatFn function not found")
 
 type JSVM struct {
 	vm *goja.Runtime
+	mu sync.Mutex // 保护 vm 的并发访问
+}
+
+var (
+	jsvmCacheMu sync.RWMutex
+	jsvmCache   = make(map[string]*JSVM)
+)
+
+func scriptHash(jsScript string) string {
+	h := md5.Sum([]byte(jsScript))
+	return fmt.Sprintf("%x", h)
 }
 
 func ParseJSVM(jsScript string) (jsvm *JSVM, err error) {
+	key := scriptHash(jsScript)
+
+	// 快速路径：读锁查缓存
+	jsvmCacheMu.RLock()
+	cached, ok := jsvmCache[key]
+	jsvmCacheMu.RUnlock()
+	if ok {
+		return cached, nil
+	}
+
+	// 慢路径：创建新 JSVM
 	vm := goja.New()
 	vm.SetFieldNameMapper(goja.TagFieldNameMapper("json", true))
 	registerUtils(vm)
@@ -29,14 +52,26 @@ func ParseJSVM(jsScript string) (jsvm *JSVM, err error) {
 	if err != nil {
 		return nil, err
 	}
-	JSVM := &JSVM{
+	jsvm = &JSVM{
 		vm: vm,
 	}
-	return JSVM, nil
+
+	// 写入缓存（double-check 防止重复创建）
+	jsvmCacheMu.Lock()
+	if existing, ok := jsvmCache[key]; ok {
+		jsvm = existing
+	} else {
+		jsvmCache[key] = jsvm
+	}
+	jsvmCacheMu.Unlock()
+
+	return jsvm, nil
 }
 
-func (vm *JSVM) RunString(jsScript string) (err error) {
-	_, err = vm.vm.RunString(jsScript)
+func (jsVm *JSVM) RunString(jsScript string) (err error) {
+	jsVm.mu.Lock()
+	defer jsVm.mu.Unlock()
+	_, err = jsVm.vm.RunString(jsScript)
 	if err != nil {
 		err = errors.WithMessagef(err, "RunString error: %s", jsScript)
 		return err
@@ -45,11 +80,13 @@ func (vm *JSVM) RunString(jsScript string) (err error) {
 }
 
 func (jsVm *JSVM) RecordFormatFn(fnName string) (fn defined.RecordFormatFn, err error) {
-	fn = func(record map[string]string) (newRecord map[string]string, err error) { // 确保一定有默认值，减少调用方nil判断的bug（比如调用方忽略ErrorJSNotFound 错误，直接使用fn）
+	fn = func(record map[string]string) (newRecord map[string]string, err error) {
 		return record, nil
 	}
 	vm := jsVm.vm
+	jsVm.mu.Lock()
 	jsFuncVal := vm.Get(fnName)
+	jsVm.mu.Unlock()
 	if jsFuncVal == nil {
 		err = errors.WithMessagef(ErrorJSNotFound, "function:%s", fnName)
 		return fn, err
@@ -60,15 +97,16 @@ func (jsVm *JSVM) RecordFormatFn(fnName string) (fn defined.RecordFormatFn, err 
 		return fn, fmt.Errorf("RecordFormatFn%s is not a function", fnName)
 	}
 
-	// 封装成 Go 函数
 	fn = func(record map[string]string) (map[string]string, error) {
+		jsVm.mu.Lock()
+		defer jsVm.mu.Unlock()
 		jsRecord := vm.ToValue(record)
 		res, err := jsFunc(goja.Undefined(), jsRecord)
 		if err != nil {
 			return nil, fmt.Errorf("RecordFormatFn js execution error: %w", err)
 		}
 
-		var newRecordAny map[string]any //对返回值类型放宽
+		var newRecordAny map[string]any
 		if err := vm.ExportTo(res, &newRecordAny); err != nil {
 			return nil, fmt.Errorf("RecordFormatFn export js result error: %w", err)
 		}
@@ -105,12 +143,11 @@ func (jsVm *JSVM) ResponseFormatFn(fnName string) (fn defined.ResponseFormatFn, 
 		return fn, err
 	}
 
-	// 封装成 Go 函数
 	fn = func(responseDTO httpraw.ResponseDTO) (records []map[string]any, err error) {
 		records = make([]map[string]any, 0)
 		err = jsVm.CallJsFn(jsFunc, responseDTO, &records)
 		if err != nil {
-			err = errors.WithMessage(err, "RequestFormatFn CallJsFn error")
+			err = errors.WithMessage(err, "ResponseFormatFn CallJsFn error")
 			return records, err
 		}
 		return records, nil
@@ -143,7 +180,7 @@ func (jsVm *JSVM) RequestFormatFn(fnName string) (fn defined.RequestFormatFn, er
 
 func (jsVm *JSVM) SettingFn(fnName string) (fn defined.SettingFn, err error) {
 	fn = func(body string) (Setting defined.Setting, err error) {
-		setting := defined.Setting{} //这里filename不能填写默认值，否则存在SettingFn就会覆盖配置设置
+		setting := defined.Setting{}
 		return setting, nil
 	}
 	jsFunc, err := jsVm.GetJSFn(fnName)
@@ -152,7 +189,6 @@ func (jsVm *JSVM) SettingFn(fnName string) (fn defined.SettingFn, err error) {
 		return fn, err
 	}
 	fn = func(body string) (setting defined.Setting, err error) {
-		// 默认值
 		setting = defined.Setting{
 			Filename: "",
 			Titles:   defined.FieldMetas{},
@@ -162,7 +198,6 @@ func (jsVm *JSVM) SettingFn(fnName string) (fn defined.SettingFn, err error) {
 			err = errors.WithMessage(err, "SettingFn CallJsFn error")
 			return setting, err
 		}
-		// 如果 JS 返回的 titles 不是数组，保证不报错
 		if setting.Titles == nil {
 			setting.Titles = defined.FieldMetas{}
 		}
@@ -172,7 +207,9 @@ func (jsVm *JSVM) SettingFn(fnName string) (fn defined.SettingFn, err error) {
 }
 func (jsVm *JSVM) GetJSFn(fnName string) (jsFunc goja.Callable, err error) {
 	vm := jsVm.vm
+	jsVm.mu.Lock()
 	jsFuncVal := vm.Get(fnName)
+	jsVm.mu.Unlock()
 	if jsFuncVal == nil {
 		err = errors.WithMessagef(ErrorJSNotFound, "GetJSFn function:%s", fnName)
 		return nil, err
@@ -187,18 +224,24 @@ func (jsVm *JSVM) GetJSFn(fnName string) (jsFunc goja.Callable, err error) {
 
 func (jsVm *JSVM) CallJsFn(jsFunc goja.Callable, input any, output any) (err error) {
 	vm := jsVm.vm
-	var inputAny any = input // 确保使用map 等基本格式
+	var inputAny any = input
 	if input == nil {
 		inputAny = map[string]any{}
 	} else {
-		if b, err := json.Marshal(input); err == nil {
-			var tmp any
-			err = json.Unmarshal(b, &tmp)
-			if err == nil {
-				inputAny = tmp
-			}
+		b, jsonErr := json.Marshal(input)
+		if jsonErr != nil {
+			return errors.WithMessage(jsonErr, "CallJsFn json marshal input error")
 		}
+		var tmp any
+		jsonErr = json.Unmarshal(b, &tmp)
+		if jsonErr != nil {
+			return errors.WithMessage(jsonErr, "CallJsFn json unmarshal input error")
+		}
+		inputAny = tmp
 	}
+
+	jsVm.mu.Lock()
+	defer jsVm.mu.Unlock()
 
 	jsBody := vm.ToValue(inputAny)
 	res, err := jsFunc(goja.Undefined(), jsBody)
@@ -215,12 +258,12 @@ func (jsVm *JSVM) CallJsFn(jsFunc goja.Callable, input any, output any) (err err
 	if result != nil {
 		b, err := json.Marshal(result)
 		if err != nil {
-			err = errors.WithMessage(err, "SettingFn result json marshal error")
+			err = errors.WithMessage(err, "CallJsFn result json marshal error")
 			return err
 		}
 		err = json.Unmarshal(b, output)
 		if err != nil {
-			err = errors.WithMessage(err, "SettingFn result json unmarshal error")
+			err = errors.WithMessage(err, "CallJsFn result json unmarshal error")
 			return err
 		}
 	}
@@ -232,10 +275,8 @@ func registerUtils(vm *goja.Runtime) {
 	// md5(str) -> hex string
 	vm.Set("md5", func(fc goja.FunctionCall) goja.Value {
 		if len(fc.Arguments) < 1 {
-			// 抛出 JS 类型错误
 			panic(vm.NewTypeError("md5 requires 1 argument"))
 		}
-		// 将第一个参数转换为字符串（JS 的 toString() 行为）
 		s := fc.Argument(0).String()
 		sum := md5.Sum([]byte(s))
 		hex := fmt.Sprintf("%x", sum)
@@ -260,7 +301,6 @@ func registerUtils(vm *goja.Runtime) {
 		s := fc.Argument(0).String()
 		b, err := base64.StdEncoding.DecodeString(s)
 		if err != nil {
-			// 将 Go 错误包装成 JS 异常抛出
 			panic(vm.NewGoError(err))
 		}
 		return vm.ToValue(string(b))
@@ -268,7 +308,6 @@ func registerUtils(vm *goja.Runtime) {
 
 	console := map[string]func(goja.FunctionCall) goja.Value{
 		"log": func(fc goja.FunctionCall) goja.Value {
-			// 简单打印所有参数的字符串形式
 			var out strings.Builder
 			for i, a := range fc.Arguments {
 				if i > 0 {
