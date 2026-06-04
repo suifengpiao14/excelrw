@@ -109,7 +109,7 @@ func (m ExportConfigModel) GetDeleteFileDelay() time.Duration {
 	if m.DeleteFileDelay == "" {
 		return 24 * time.Hour // 默认24小时
 	}
-	duration, err := time.ParseDuration(m.TaskDealMaxTime)
+	duration, err := time.ParseDuration(m.DeleteFileDelay)
 	if err != nil {
 		return 24 * time.Hour // 默认24小时
 	}

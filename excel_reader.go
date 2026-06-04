@@ -42,8 +42,11 @@ func (instance *_ExcelReader) Read(f *excelize.File, sheet string, fieldMap map[
 		return nil, err
 	}
 	output := make([]map[string]string, 0)
+	// 复制 fieldMap，避免修改调用方的 map
+	lookupMap := make(map[string]string, len(fieldMap)*2)
 	for k, v := range fieldMap {
-		fieldMap[strings.ToUpper(k)] = v // 兼容 大小写
+		lookupMap[k] = v
+		lookupMap[strings.ToUpper(k)] = v // 兼容大小写
 	}
 
 	for index, row := range rows {
@@ -57,7 +60,7 @@ func (instance *_ExcelReader) Read(f *excelize.File, sheet string, fieldMap map[
 				return nil, err
 			}
 			if fieldMap != nil { // 如果定制了列名和字段映射关系，替换字段映射
-				field, ok := fieldMap[colName]
+				field, ok := lookupMap[colName]
 				if ok {
 					record[field] = colCell
 				}

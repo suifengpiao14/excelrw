@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/pkg/errors"
 	"github.com/suifengpiao14/excelrw/defined"
@@ -151,6 +152,7 @@ type ExcelStreamWriter struct {
 	fieldMetas  defined.FieldMetas
 	//withTitleRow      bool
 	RemoveFileTimeout time.Duration
+	ErrorHandler      func(err error)
 
 	nextRowNumber int
 	streamWriter  *excelize.StreamWriter
@@ -237,9 +239,8 @@ func (ecw *ExcelStreamWriter) AutoAdjustColumnWidth() (err error) {
 	for i, fieldMeta := range ecw.fieldMetas {
 		columnNumber := i + 1
 		col, _ := excelize.ColumnNumberToName(columnNumber)
-		colMax, _ := excelize.ColumnNumberToName(columnNumber + 1)
-		maxSize := fieldMeta.GetMaxSize()                                  // 测试使用
-		err = ecw.fd.SetColWidth(ecw.sheet, col, colMax, float64(maxSize)) // 乘以256，因为excel的列宽是以1/256个字符宽度为单位的。
+		maxSize := fieldMeta.GetMaxSize()                               // 测试使用
+		err = ecw.fd.SetColWidth(ecw.sheet, col, col, float64(maxSize)) // 乘以256，因为excel的列宽是以1/256个字符宽度为单位的。
 		if err != nil {
 			return err
 		}
@@ -257,7 +258,7 @@ func (ecw *ExcelStreamWriter) calFieldMetaMaxSize(rows []map[string]string) {
 			if lineIndex > 0 {
 				content = content[:lineIndex]
 			}
-			maxSize := len(content)
+			maxSize := utf8.RuneCountInString(content)
 			if isNumber(content) {
 				maxSize += 3 // 数字(如身份证)额外增加3个字符宽度，以便于显示美观
 
@@ -300,16 +301,24 @@ func (ecw *ExcelStreamWriter) WithDeleteFile(delay time.Duration, errorHandler f
 			fmt.Println("ExcelStreamWriter.WithDeleteFile error", err)
 		}
 	}
+	ecw.RemoveFileTimeout = delay
+	ecw.ErrorHandler = errorHandler
+	return ecw
+}
+
+func (ecw *ExcelStreamWriter) scheduleDeleteFile() {
+	if ecw.RemoveFileTimeout <= 0 {
+		return
+	}
+	delay := ecw.RemoveFileTimeout
+	errorHandler := ecw.ErrorHandler
 	go func() {
-		// 等待指定时间
 		time.Sleep(delay)
-		// 删除文件
 		err := os.Remove(ecw.filename)
-		if err != nil {
+		if err != nil && errorHandler != nil {
 			errorHandler(err)
 		}
 	}()
-	return ecw
 }
 
 // WithFetcher 设置数据获取器，用于从数据库或其他地方获取数据并写入Excel文件,可以使用SliceAny2string辅助函数 在回调FetcherFn 中转换数据类型输出
@@ -353,6 +362,7 @@ func (ecw *ExcelStreamWriter) loop() (err error) {
 	loopTimes := 0
 	maxLoopTimes := ecw.gethMaxLoopTimes()
 	defer ecw.Save()
+	defer ecw.scheduleDeleteFile()
 	for {
 		select {
 		case <-ecw.context.Done():

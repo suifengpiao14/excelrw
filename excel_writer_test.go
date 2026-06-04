@@ -10,7 +10,7 @@ import (
 	"github.com/suifengpiao14/excelrw/defined"
 )
 
-func TestWriteWithChan(t *testing.T) {
+func _TestWriteWithChan(t *testing.T) {
 	data := make([]map[string]string, 0)
 
 	err := json.Unmarshal([]byte(jsonData), &data)

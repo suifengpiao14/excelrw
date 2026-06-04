@@ -29,7 +29,7 @@ func (exportExcel *ExportExcel) SetFilename(filename string) {
 	exportExcel.filename = filename
 }
 
-func (exportExcel ExportExcel) GetFilename() (filename string) {
+func (exportExcel *ExportExcel) GetFilename() (filename string) {
 	return exportExcel.filename
 }
 func (exportExcel *ExportExcel) WithFetcherDataFn(fn FetcherDataFn) *ExportExcel {
@@ -37,7 +37,7 @@ func (exportExcel *ExportExcel) WithFetcherDataFn(fn FetcherDataFn) *ExportExcel
 	return exportExcel
 }
 
-func (exportExcel ExportExcel) Export(params map[string]any) (excelFielname string, err error) {
+func (exportExcel *ExportExcel) Export(params map[string]any) (excelFielname string, err error) {
 	if exportExcel.filename == "" {
 		err = errors.Errorf("filename required")
 		return "", err

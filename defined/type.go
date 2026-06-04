@@ -38,7 +38,7 @@ func (fm *FieldMeta) parseTpl() (*mustache.Template, error) {
 	return fm.template, fm.err
 }
 
-func (fm FieldMeta) GetValue(rowNumber int, row map[string]string) string {
+func (fm *FieldMeta) GetValue(rowNumber int, row map[string]string) string {
 	if fm.err != nil {
 		return fm.err.Error()
 	}

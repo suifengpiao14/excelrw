@@ -110,7 +110,23 @@ func SubscribeTaskFinishedEvent() (consumerMaker func(table sqlbuilder.TableConf
 				}
 
 			case Task_status_failed:
-				//todo 有任务失败，应该将依赖的回调函数也标记为失败
+				requestService := NewRequestLogRepository(table)
+				taskId := cast.ToString(model.Id)
+				requests, err := requestService.GetByDependTaskId(taskId)
+				if err != nil {
+					return err
+				}
+				for _, request := range requests {
+					updateIn := RequestLogRepositoryUpdateResponseIn{
+						Id:     request.Id,
+						Result: ReqeustLog_result_fail,
+						Error:  "dependent task failed",
+					}
+				err = requestService.UpdateResponse(updateIn)
+				if err != nil {
+					return err
+				}
+				}
 			}
 			return nil
 		})
@@ -143,6 +159,12 @@ func (p ProxyRequest) Request() (proxyResponse ProxyResponse, err error) {
 		Body:    string(resp),
 	}
 	if err != nil {
+		proxyResponse = ProxyResponse{
+			RespDTO:  responseDTO,
+			HttpCode: response.HttpCode,
+			Result:   ReqeustLog_result_fail,
+			Error:    err.Error(),
+		}
 		return proxyResponse, err
 	}
 	result := ReqeustLog_result_fail
