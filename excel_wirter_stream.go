@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unicode/utf8"
 
 	"github.com/pkg/errors"
 	"github.com/suifengpiao14/excelrw/defined"
@@ -258,7 +257,14 @@ func (ecw *ExcelStreamWriter) calFieldMetaMaxSize(rows []map[string]string) {
 			if lineIndex > 0 {
 				content = content[:lineIndex]
 			}
-			maxSize := utf8.RuneCountInString(content)
+			maxSize := 0
+			for _, r := range content {
+				if r >= 0x4E00 && r <= 0x9FFF {
+					maxSize += 3
+				} else {
+					maxSize++
+				}
+			}
 			if isNumber(content) {
 				maxSize += 3 // 数字(如身份证)额外增加3个字符宽度，以便于显示美观
 

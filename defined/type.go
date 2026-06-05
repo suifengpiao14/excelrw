@@ -2,41 +2,57 @@ package defined
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/hoisie/mustache"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 	"github.com/suifengpiao14/httpraw"
+	"github.com/xuri/excelize/v2"
 )
 
-type FieldMeta struct {
-	Title    string `json:"title"` // 列标题
-	Name     string `json:"name"`  // 列值模板，例如：{{nameField}}({{idField}}),如果只有一个字段，则可以省略{{}}
-	maxSize  int    // 当前列字符串最多的个数(用来调整列宽)
-	template *mustache.Template
-	err      error
+func RenderFnName(name string) Render {
+	return RenderFn(func(context ...any) string {
+		return name
+	})
 }
 
-var ErrorFieldMeta = errors.Errorf("FieldMeta.Name is empty")
+type Render interface {
+	Render(context ...any) string
+}
 
-func (fm *FieldMeta) parseTpl() (*mustache.Template, error) {
-	if fm.template != nil {
-		return fm.template, nil
+type RenderFn func(context ...any) string
+
+func (r RenderFn) Render(context ...any) string {
+	return r(context...)
+}
+
+type FieldMeta struct {
+	Title   string `json:"title"` // 列标题
+	Name    string `json:"name"`  // 列值模板，例如：{{nameField}}({{idField}}),如果只有一个字段，则可以省略{{}}
+	maxSize int    // 当前列字符串最多的个数(用来调整列宽)
+	Render  Render `json:"-"` // 列值渲染器，例如：{{nameField}}({{idField}})
+	//template *mustache.Template
+	err error
+}
+
+func (fm *FieldMeta) getRender() (r Render, err error) {
+	if fm.Render != nil {
+		return fm.Render, nil
 	}
 	if fm.Name == "" {
 		fm.err = ErrorFieldMeta
 		return nil, fm.err
 	}
 	tpl := fm.Name
-	if !strings.Contains(fm.Name, "{{") {
-		tpl = fmt.Sprintf(`{{%s}}`, fm.Name)
+	if !strings.Contains(fm.Name, "{{") { // 不包含{{}},直接返回字段名作为值（支持增加常量字段）
+		return RenderFnName(fm.Name), nil
 	}
-
-	fm.template, fm.err = mustache.ParseString(tpl)
-	return fm.template, fm.err
+	fm.Render, fm.err = mustache.ParseString(tpl)
+	return fm.Render, fm.err
 }
+
+var ErrorFieldMeta = errors.Errorf("FieldMeta.Name is empty")
 
 func (fm *FieldMeta) GetValue(rowNumber int, row map[string]string) string {
 	if fm.err != nil {
@@ -49,20 +65,18 @@ func (fm *FieldMeta) GetValue(rowNumber int, row map[string]string) string {
 	if value, ok := m[fm.Name]; ok {
 		return cast.ToString(value)
 	}
-	tpl, err := fm.parseTpl()
+	render, err := fm.getRender()
 	if err != nil {
 		return err.Error()
 	}
-	value := tpl.Render(row, m)
+	value := render.Render(row, m)
 	return value
 }
 func (fm FieldMeta) GetMaxSize() int { return fm.maxSize }
 
-var ColumnMaxSize = 100 // 列宽最大值
-
 func (fm *FieldMeta) SetMaxSize(size int) {
-	if size > ColumnMaxSize {
-		size = ColumnMaxSize // 列宽最大值限制
+	if size > excelize.MaxColumnWidth {
+		size = excelize.MaxColumnWidth // 列宽最大值限制
 
 	}
 	if fm.maxSize < size {
