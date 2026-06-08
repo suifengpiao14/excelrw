@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"maps"
 	"regexp"
 	"time"
@@ -154,7 +155,16 @@ func ExportApi(in ExportApiIn) (errChan chan error, err error) {
 		requestDTO := requestDTODefault
 		if proxyReq.PageIndexPath != "" {
 			pageIndex := startIndex + pageIndexDelta
-			indexRaw := exp.ReplaceAllString(startIndexRaw, cast.ToString(pageIndex)) // 确保类型一致
+			pageValue := cast.ToString(pageIndex)
+			var indexRaw string
+			switch {
+			case exp.MatchString(startIndexRaw):
+				indexRaw = exp.ReplaceAllString(startIndexRaw, pageValue)
+			case len(startIndexRaw) > 0 && startIndexRaw[0] == '"':
+				indexRaw = fmt.Sprintf("%q", pageValue)
+			default:
+				indexRaw = pageValue
+			}
 			requestDTO.Body, err = sjson.SetRaw(requestDTO.Body, proxyReq.PageIndexPath, indexRaw)
 			if err != nil {
 				return nil, err
